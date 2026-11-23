@@ -1,0 +1,205 @@
+const DOMAINS = [
+  'chatgpt.com',
+  'openai.com',
+  'auth0.com',
+  'google.com',
+  'tongyi.com',
+  'qianwen.com',
+  'aliyun.com',
+  'taobao.com',
+  'mmstat.com',
+  'kimi.com',
+  'moonshot.cn',
+  'deepseek.com'
+];
+
+const HOST_NAME = 'com.chatai.cookie_import';
+let storageStatus = {};
+
+async function collectAndSend() {
+  const all = [];
+  const perDomain = {};
+  for (const domain of DOMAINS) {
+    const cookies = await chrome.cookies.getAll({ domain });
+    perDomain[domain] = cookies.length;
+    all.push(...cookies);
+  }
+  let totalInStore = -1;
+  let storeHosts = [];
+  try {
+    const everyCookie = await chrome.cookies.getAll({});
+    totalInStore = everyCookie.length;
+    storeHosts = Array.from(new Set(everyCookie.map((cookie) => cookie.domain.replace(/^\./, '')))).sort();
+  } catch {
+  }
+  const seen = new Set();
+  const unique = all.filter((cookie) => {
+    const key = `${cookie.domain}|${cookie.path}|${cookie.name}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const payload = {
+    type: 'cookie-import',
+    cookies: unique.map((cookie) => ({
+      name: cookie.name,
+      value: cookie.value,
+      domain: cookie.domain,
+      path: cookie.path,
+      secure: cookie.secure,
+      httpOnly: cookie.httpOnly,
+      sameSite: cookie.sameSite,
+      expirationDate: cookie.session ? undefined : cookie.expirationDate
+    })),
+    userAgent: navigator.userAgent,
+    sentAt: Date.now(),
+    diag: { perDomain, totalInStore, storeHosts }
+  };
+  payload.storage = await collectStorage();
+  payload.storageStatus = storageStatus;
+  return sendPayload(payload);
+}
+
+function sendPayload(payload) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendNativeMessage(HOST_NAME, payload, (response) => {
+      if (chrome.runtime.lastError) {
+        resolve({ ok: false, error: chrome.runtime.lastError.message });
+      } else {
+        resolve({ ...(response || { ok: false, error: 'empty response' }), diag: payload.diag });
+      }
+    });
+  });
+}
+
+const STORAGE_ORIGINS = [
+  'https://chatgpt.com',
+  'https://gemini.google.com',
+  'https://www.qianwen.com',
+  'https://www.kimi.com',
+  'https://chat.deepseek.com'
+];
+
+async function dumpStorageInTab(tabId) {
+  const injection = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => {
+      const dump = {};
+      for (let index = 0; index < localStorage.length; index += 1) {
+        const key = localStorage.key(index);
+        dump[key] = localStorage.getItem(key);
+      }
+      return dump;
+    }
+  });
+  return (injection && injection[0] && injection[0].result) || {};
+}
+
+async function collectStorage() {
+  const result = {};
+  storageStatus = {};
+  let tabs = [];
+  try {
+    tabs = await chrome.tabs.query({});
+  } catch {
+    tabs = [];
+  }
+  for (const tab of tabs) {
+    if (!tab.url || !/^https?:/.test(tab.url)) continue;
+    let origin;
+    try {
+      origin = new URL(tab.url).origin;
+    } catch {
+      continue;
+    }
+    const matched = DOMAINS.some((domain) => {
+      const host = new URL(tab.url).hostname;
+      return host === domain || host.endsWith(`.${domain}`);
+    });
+    if (!matched || result[origin]) continue;
+    try {
+      const data = await dumpStorageInTab(tab.id);
+      if (Object.keys(data).length > 0) {
+        result[origin] = data;
+        storageStatus[origin] = 'tab';
+      }
+    } catch (error) {
+      storageStatus[origin] = `tab-error: ${String(error).slice(0, 80)}`;
+    }
+  }
+  return result;
+}
+
+async function deepCollectAndSend() {
+  let totalInStore = -1;
+  let storeHosts = [];
+  try {
+    const everyCookie = await chrome.cookies.getAll({});
+    totalInStore = everyCookie.length;
+    storeHosts = Array.from(new Set(everyCookie.map((cookie) => cookie.domain.replace(/^\./, '')))).sort();
+  } catch {
+  }
+  const payload = {
+    type: 'cookie-import',
+    cookies: [],
+    userAgent: navigator.userAgent,
+    sentAt: Date.now(),
+    storage: {},
+    storageStatus: {},
+    deep: true,
+    diag: { totalInStore, storeHosts }
+  };
+  await Promise.all(STORAGE_ORIGINS.map((origin) => collectOneOrigin(origin, payload)));
+  return sendPayload(payload);
+}
+
+async function collectOneOrigin(origin, payload) {
+    let tab;
+    try {
+      tab = await chrome.tabs.create({ url: `${origin}/`, active: false });
+      await waitForTabComplete(tab.id, 10000);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const data = await dumpStorageInTab(tab.id);
+      if (Object.keys(data).length > 0) {
+        payload.storage[origin] = data;
+        payload.storageStatus[origin] = 'opened';
+      } else {
+        payload.storageStatus[origin] = 'empty';
+      }
+    } catch (error) {
+      payload.storageStatus[origin] = `open-error: ${String(error).slice(0, 80)}`;
+    } finally {
+      if (tab) {
+        try { await chrome.tabs.remove(tab.id); } catch {}
+      }
+    }
+}
+
+function waitForTabComplete(tabId, timeoutMs) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve();
+    }, timeoutMs);
+    function listener(updatedId, changeInfo) {
+      if (updatedId === tabId && changeInfo.status === 'complete') {
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve();
+      }
+    }
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message && message.type === 'send-cookies') {
+    collectAndSend().then(sendResponse);
+    return true;
+  }
+  if (message && message.type === 'deep-collect') {
+    deepCollectAndSend().then(sendResponse);
+    return true;
+  }
+  return false;
+});

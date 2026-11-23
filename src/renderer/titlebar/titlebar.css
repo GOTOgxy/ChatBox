@@ -1,0 +1,108 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  user-select: none;
+}
+
+.bar {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  background: rgba(28, 29, 35, 0.97);
+  border-radius: 12px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+  -webkit-app-region: drag;
+}
+
+.bar.docked {
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid #2c2e36;
+  box-shadow: none;
+  background: #1c1d23;
+  gap: 6px;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+}
+
+.bar.docked .url-input {
+  max-width: 320px;
+  height: 26px;
+  font-size: 11.5px;
+}
+
+.bar.docked .nav-btn { width: 26px; height: 26px; }
+.bar.docked .win-btn { width: 30px; height: 24px; }
+
+.hidden { display: none !important; }
+
+.nav-group {
+  display: flex;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+}
+
+.nav-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #9a9da6;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-btn:hover { background: #2c2e36; color: #fff; }
+
+.url-wrap {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.url-input {
+  width: 100%;
+  max-width: 560px;
+  height: 32px;
+  background: #17181c;
+  border: 1px solid #3a3d46;
+  border-radius: 9px;
+  color: #d6d8de;
+  font-size: 12.5px;
+  padding: 0 12px;
+  outline: none;
+  -webkit-app-region: no-drag;
+}
+
+.url-input:focus { border-color: #4d6bfe; color: #fff; }
+
+.win-controls {
+  display: flex;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.win-btn {
+  width: 34px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #9a9da6;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.win-btn:hover { background: #2c2e36; color: #fff; }
+.win-btn.close:hover { background: #e5484d; color: #fff; }

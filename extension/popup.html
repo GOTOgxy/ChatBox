@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      width: 260px;
+      padding: 14px;
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      background: #17181c;
+      color: #e6e7ea;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #4d6bfe;
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button:hover { background: #5d7aff; }
+    button.secondary {
+      margin-top: 8px;
+      background: #2a2c33;
+      border: 1px solid #3a3d46;
+      font-size: 12px;
+    }
+    button.secondary:hover { background: #343741; }
+    #status { margin-top: 10px; font-size: 12px; min-height: 16px; color: #9fe6b0; max-height: 180px; overflow-y: auto; word-break: break-all; }
+    #status.error { color: #ff9b9b; }
+  </style>
+</head>
+<body>
+  <button id="send">发送登录态到 ChatBox</button>
+  <button id="deep" class="secondary">深度采集(后台打开各站点)</button>
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

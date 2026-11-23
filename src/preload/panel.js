@@ -1,0 +1,27 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('chatbox', {
+  onPanelShow: (callback) => ipcRenderer.on('panel:show', (_event, data) => callback(data)),
+  panelReady: () => ipcRenderer.send('panel:ready'),
+  closePanel: () => ipcRenderer.send('panel:close'),
+  getHotkeys: () => ipcRenderer.invoke('hotkeys:get'),
+  setHotkey: (kind, id, accelerator) => ipcRenderer.invoke('hotkeys:set', { kind, id, accelerator }),
+  registerHost: () => ipcRenderer.invoke('import:register-host'),
+  openExtensionsPage: () => ipcRenderer.invoke('import:open-extensions-page'),
+  extensionPath: () => ipcRenderer.invoke('import:extension-path'),
+  runImport: () => ipcRenderer.invoke('import:run'),
+  getSettings: () => ipcRenderer.invoke('settings:get'),
+  setTitlebarMode: (mode) => ipcRenderer.invoke('settings:set-titlebar-mode', mode),
+  checkUpdate: () => ipcRenderer.invoke('update:check'),
+  onCheckUpdate: (callback) => ipcRenderer.on('panel:check-update', () => callback()),
+  onSiteConfig: (callback) => ipcRenderer.on('panel:site-config', (_event, data) => callback(data)),
+  getAllSites: () => ipcRenderer.invoke('sites:get-all'),
+  updateSite: (id, patch) => ipcRenderer.invoke('sites:update', { id, patch }),
+  addSite: (data) => ipcRenderer.invoke('sites:add', data),
+  pickIcon: () => ipcRenderer.invoke('sites:pick-icon'),
+  deleteSite: (id) => ipcRenderer.invoke('sites:delete', id),
+  fetchIcon: (id) => ipcRenderer.invoke('sites:fetch-icon', id),
+  setProxy: (mode, rules) => ipcRenderer.invoke('settings:set-proxy', mode, rules),
+  setAccent: (color) => ipcRenderer.invoke('settings:set-accent', color),
+  setHome: (url) => ipcRenderer.invoke('settings:set-home', url)
+});

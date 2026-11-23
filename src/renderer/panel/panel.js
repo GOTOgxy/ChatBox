@@ -1,0 +1,493 @@
+let sites = [];
+let hotkeys = { switcher: '', showApp: '', sites: {} };
+let editingSite = null;
+let pendingIcon = null;
+let addPendingIcon = null;
+let addHotkeyValue = '';
+
+const PRESET_COLORS = [
+  '#ffffff', '#ff5fa2', '#a855f7', '#4d6bfe', '#10a37f', '#f5a623'
+];
+
+function buildSwatches(containerId, inputId) {
+  const container = document.getElementById(containerId);
+  const input = document.getElementById(inputId);
+  container.innerHTML = '';
+  for (const color of PRESET_COLORS) {
+    const swatch = document.createElement('button');
+    swatch.className = 'swatch';
+    swatch.style.background = color;
+    swatch.title = color;
+    swatch.addEventListener('click', () => {
+      input.value = color;
+      markSelectedSwatch(containerId, color);
+    });
+    container.appendChild(swatch);
+  }
+  input.addEventListener('input', () => markSelectedSwatch(containerId, input.value));
+}
+
+function markSelectedSwatch(containerId, color) {
+  const container = document.getElementById(containerId);
+  Array.from(container.children).forEach((swatch) => {
+    swatch.classList.toggle('selected', swatch.title.toLowerCase() === String(color).toLowerCase());
+  });
+}
+
+buildSwatches('cfg-swatches', 'cfg-color');
+buildSwatches('add-swatches', 'add-color');
+buildSwatches('accent-swatches', 'accent-color');
+
+function setAccentUi(color) {
+  document.getElementById('accent-color').value = color;
+  markSelectedSwatch('accent-swatches', color);
+}
+
+async function applyAccent(color) {
+  const result = await window.chatbox.setAccent(color);
+  setAccentUi(result.accentColor);
+}
+
+document.getElementById('home-apply').addEventListener('click', async () => {
+  const value = document.getElementById('home-url').value.trim();
+  const statusEl = document.getElementById('home-status');
+  const result = await window.chatbox.setHome(value);
+  if (result.ok) {
+    statusEl.className = 'status';
+    statusEl.textContent = value ? '主页已保存,点标题栏房子图标前往。' : '已恢复为当前站点首页。';
+  } else {
+    statusEl.className = 'status error';
+    statusEl.textContent = '地址需以 http:// 或 https:// 开头。';
+  }
+});
+
+document.getElementById('accent-color').addEventListener('change', (event) => applyAccent(event.target.value));
+document.getElementById('accent-swatches').addEventListener('click', (event) => {
+  const swatch = event.target.closest('.swatch');
+  if (swatch) applyAccent(swatch.title);
+});
+
+const settingsSection = document.getElementById('settings-section');
+const importSection = document.getElementById('import-section');
+const siteConfigSection = document.getElementById('site-config-section');
+const siteAddSection = document.getElementById('site-add-section');
+const panelTitle = document.getElementById('panel-title');
+const hotkeyStatus = document.getElementById('hotkey-status');
+const importStatus = document.getElementById('import-status');
+const siteHotkeysEl = document.getElementById('site-hotkeys');
+
+function displayAccel(accelerator) {
+  return (accelerator || '未设置').replace(/CommandOrControl/g, 'Ctrl');
+}
+
+function buildSiteHotkeyRows() {
+  siteHotkeysEl.innerHTML = '';
+  for (const site of sites) {
+    const row = document.createElement('div');
+    row.className = 'hotkey-row';
+    row.innerHTML = `
+      <span class="hotkey-label"><span class="hotkey-dot" style="background:${site.color}"></span>${site.name}</span>
+      <input class="hotkey-input" data-kind="site" data-id="${site.id}" readonly />`;
+    siteHotkeysEl.appendChild(row);
+  }
+  bindHotkeyInputs();
+}
+
+function fillHotkeyInputs() {
+  document.querySelectorAll('.hotkey-input').forEach((input) => {
+    const kind = input.dataset.kind;
+    const value = kind === 'site' ? hotkeys.sites[input.dataset.id] : hotkeys[kind];
+    input.value = displayAccel(value);
+  });
+}
+
+function recordAccelerator(event) {
+  const modifiers = [];
+  if (event.ctrlKey) modifiers.push('CommandOrControl');
+  if (event.altKey) modifiers.push('Alt');
+  if (event.shiftKey) modifiers.push('Shift');
+  if (event.metaKey && !event.ctrlKey) modifiers.push('CommandOrControl');
+  const key = event.key;
+  if (['Control', 'Alt', 'Shift', 'Meta'].includes(key)) return null;
+  if (modifiers.length === 0) return null;
+  let main = null;
+  if (/^[a-zA-Z]$/.test(key)) main = key.toUpperCase();
+  else if (/^[0-9]$/.test(key)) main = key;
+  else if (/^F([1-9]|1[0-9]|2[0-4])$/.test(key)) main = key;
+  else if (key === ' ') main = 'Space';
+  else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown', 'Insert', 'Delete'].includes(key)) main = key;
+  else if (key.length === 1 && /[^\w\s]/.test(key)) main = key;
+  if (!main) return null;
+  return [...modifiers, main].join('+');
+}
+
+function bindHotkeyInputs() {
+  document.querySelectorAll('.hotkey-input').forEach((input) => {
+    if (input.dataset.bound) return;
+    input.dataset.bound = '1';
+    input.addEventListener('focus', () => {
+      input.classList.add('recording');
+      input.dataset.original = input.value;
+      input.value = '按下组合键…';
+    });
+    input.addEventListener('blur', () => {
+      input.classList.remove('recording');
+      if (input.value === '按下组合键…') input.value = input.dataset.original;
+    });
+    input.addEventListener('keydown', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === 'Escape') {
+        input.value = input.dataset.original;
+        input.blur();
+        return;
+      }
+      const kind = input.dataset.kind;
+      const id = input.dataset.id || null;
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        if (kind === 'new-site') {
+          addHotkeyValue = '';
+          input.value = displayAccel('');
+        } else {
+          await applyHotkey(kind, id, '');
+        }
+        input.blur();
+        return;
+      }
+      const accelerator = recordAccelerator(event);
+      if (!accelerator) return;
+      if (kind === 'new-site') {
+        addHotkeyValue = accelerator;
+        input.value = displayAccel(accelerator);
+      } else {
+        await applyHotkey(kind, id, accelerator);
+      }
+      input.blur();
+    });
+  });
+}
+
+async function applyHotkey(kind, id, accelerator) {
+  const result = await window.chatbox.setHotkey(kind, id, accelerator);
+  if (result.hotkeys) hotkeys = result.hotkeys;
+  fillHotkeyInputs();
+  if (result.ok) {
+    hotkeyStatus.className = 'status';
+    hotkeyStatus.textContent = accelerator ? '已保存并生效。' : '已清除。';
+  } else {
+    hotkeyStatus.className = 'status error';
+    hotkeyStatus.textContent = '注册失败:该组合键无效或已被其他软件占用,已还原。';
+  }
+}
+
+window.chatbox.onPanelShow(async (data) => {
+  sites = data.sites || [];
+  hotkeys = data.hotkeys || { switcher: '', showApp: '', sites: {} };
+  document.querySelector('.card').classList.add('ready');
+  const mode = ['import', 'site-config', 'site-add'].includes(data.mode) ? data.mode : 'settings';
+  panelTitle.textContent = {
+    settings: '设置 · 全局快捷键',
+    import: '导入浏览器登录态',
+    'site-config': '站点配置',
+    'site-add': '添加站点'
+  }[mode];
+  settingsSection.classList.toggle('hidden', mode !== 'settings');
+  importSection.classList.toggle('hidden', mode !== 'import');
+  siteConfigSection.classList.toggle('hidden', mode !== 'site-config');
+  siteAddSection.classList.toggle('hidden', mode !== 'site-add');
+  document.querySelector('.card').scrollTop = 0;
+  hotkeyStatus.textContent = '';
+  importStatus.textContent = '';
+  if (data.site) applySiteConfig(data.site);
+  buildSiteHotkeyRows();
+  fillHotkeyInputs();
+  window.chatbox.getSettings().then((settings) => {
+    setTitlebarModeUi(settings.titlebarMode);
+    setProxyUi(settings.proxyMode, settings.proxyRules);
+    setAccentUi(settings.accentColor || '#ff5fa2');
+    document.getElementById('home-url').value = settings.homeUrl || '';
+    document.getElementById('version-text').textContent = `v${settings.version}`;
+  });
+  window.chatbox.extensionPath().then((extPath) => {
+    document.getElementById('ext-path').textContent = extPath;
+  });
+});
+
+function applySiteConfig(site) {
+  editingSite = site;
+  pendingIcon = null;
+  document.getElementById('cfg-name').value = site.name;
+  document.getElementById('cfg-url').value = site.url;
+  document.getElementById('cfg-color').value = site.color;
+  markSelectedSwatch('cfg-swatches', site.color);
+  const hotkeyInput = document.getElementById('cfg-hotkey');
+  hotkeyInput.dataset.id = site.id;
+  hotkeyInput.value = displayAccel(hotkeys.sites[site.id]);
+  document.getElementById('cfg-open-in-app').checked = site.openInApp === true;
+  bindHotkeyInputs();
+  renderIconPreview();
+  document.getElementById('cfg-status').textContent = '';
+}
+
+window.chatbox.onSiteConfig(({ site }) => applySiteConfig(site));
+
+function renderIconPreview() {
+  const preview = document.getElementById('cfg-icon-preview');
+  const icon = pendingIcon !== null ? pendingIcon : (editingSite ? editingSite.icon : '');
+  if (icon) {
+    preview.innerHTML = `<img src="${icon}" alt="" />`;
+    preview.style.background = '#ffffff';
+  } else {
+    preview.innerHTML = editingSite ? editingSite.letter : '?';
+    preview.style.background = editingSite ? editingSite.color : '#4d6bfe';
+  }
+}
+
+document.getElementById('cfg-upload').addEventListener('click', async () => {
+  const result = await window.chatbox.pickIcon();
+  if (result.ok) {
+    pendingIcon = result.icon;
+    renderIconPreview();
+  } else if (result.error === 'too-large') {
+    document.getElementById('cfg-status').className = 'status error';
+    document.getElementById('cfg-status').textContent = '图片太大(上限 512KB)。';
+  }
+});
+
+document.getElementById('cfg-clear-icon').addEventListener('click', () => {
+  pendingIcon = '';
+  renderIconPreview();
+});
+
+document.getElementById('cfg-fetch').addEventListener('click', async () => {
+  if (!editingSite) return;
+  const statusEl = document.getElementById('cfg-status');
+  statusEl.className = 'status';
+  statusEl.textContent = '正在拉取网站图标…';
+  const result = await window.chatbox.fetchIcon(editingSite.id);
+  if (result.ok) {
+    pendingIcon = result.icon;
+    editingSite.icon = result.icon;
+    renderIconPreview();
+    statusEl.textContent = '已拉取,点「保存」生效。';
+  } else {
+    statusEl.className = 'status error';
+    statusEl.textContent = '拉取失败,可手动上传。';
+  }
+});
+
+document.getElementById('cfg-save').addEventListener('click', async () => {
+  if (!editingSite) return;
+  const patch = {
+    name: document.getElementById('cfg-name').value,
+    url: document.getElementById('cfg-url').value,
+    color: document.getElementById('cfg-color').value,
+    openInApp: document.getElementById('cfg-open-in-app').checked
+  };
+  if (pendingIcon !== null) patch.icon = pendingIcon;
+  const result = await window.chatbox.updateSite(editingSite.id, patch);
+  const statusEl = document.getElementById('cfg-status');
+  if (result.ok) {
+    editingSite = result.site;
+    pendingIcon = null;
+    statusEl.className = 'status';
+    statusEl.textContent = '已保存。';
+    renderIconPreview();
+  } else {
+    statusEl.className = 'status error';
+    statusEl.textContent = `保存失败: ${result.error}`;
+  }
+});
+
+document.getElementById('cfg-disable').addEventListener('click', async () => {
+  if (!editingSite) return;
+  await window.chatbox.updateSite(editingSite.id, { enabled: false });
+  window.chatbox.closePanel();
+});
+
+document.getElementById('cfg-delete').addEventListener('click', async () => {
+  if (!editingSite) return;
+  const result = await window.chatbox.deleteSite(editingSite.id);
+  if (result.ok) window.chatbox.closePanel();
+});
+
+document.getElementById('add-save').addEventListener('click', async () => {
+  const name = document.getElementById('add-name').value.trim();
+  let url = document.getElementById('add-url').value.trim();
+  const statusEl = document.getElementById('add-status');
+  if (!name || !url) {
+    statusEl.className = 'status error';
+    statusEl.textContent = '名称和地址都要填。';
+    return;
+  }
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  const result = await window.chatbox.addSite({
+    name,
+    url,
+    color: document.getElementById('add-color').value,
+    icon: addPendingIcon || '',
+    openInApp: document.getElementById('add-open-in-app').checked,
+    hotkey: addHotkeyValue
+  });
+  if (result.ok) {
+    statusEl.className = 'status';
+    statusEl.textContent = `已添加「${result.site.name}」。`;
+    document.getElementById('add-name').value = '';
+    document.getElementById('add-url').value = '';
+    addPendingIcon = null;
+    addHotkeyValue = '';
+    document.getElementById('add-hotkey').value = displayAccel('');
+    document.getElementById('add-open-in-app').checked = false;
+    renderAddIconPreview();
+  } else {
+    statusEl.className = 'status error';
+    statusEl.textContent = '添加失败:请检查地址格式。';
+  }
+});
+
+function setTitlebarModeUi(mode) {
+  document.getElementById('mode-floating').classList.toggle('active', mode !== 'docked');
+  document.getElementById('mode-docked').classList.toggle('active', mode === 'docked');
+}
+
+function renderAddIconPreview() {
+  const preview = document.getElementById('add-icon-preview');
+  if (addPendingIcon) {
+    preview.innerHTML = `<img src="${addPendingIcon}" alt="" />`;
+    preview.style.background = '#ffffff';
+  } else {
+    const name = document.getElementById('add-name').value.trim();
+    preview.innerHTML = name ? name.charAt(0).toUpperCase() : '?';
+    preview.style.background = document.getElementById('add-color').value;
+  }
+}
+
+document.getElementById('add-upload').addEventListener('click', async () => {
+  const result = await window.chatbox.pickIcon();
+  const statusEl = document.getElementById('add-status');
+  if (result.ok) {
+    addPendingIcon = result.icon;
+    renderAddIconPreview();
+  } else if (result.error === 'too-large') {
+    statusEl.className = 'status error';
+    statusEl.textContent = '图片太大(上限 512KB)。';
+  }
+});
+
+document.getElementById('add-clear-icon').addEventListener('click', () => {
+  addPendingIcon = null;
+  renderAddIconPreview();
+});
+
+document.getElementById('add-name').addEventListener('input', renderAddIconPreview);
+document.getElementById('add-color').addEventListener('input', renderAddIconPreview);
+bindHotkeyInputs();
+renderAddIconPreview();
+
+function setProxyUi(mode, rules) {
+  document.getElementById('proxy-system').classList.toggle('active', mode !== 'custom');
+  document.getElementById('proxy-custom').classList.toggle('active', mode === 'custom');
+  document.getElementById('proxy-custom-row').classList.toggle('hidden', mode !== 'custom');
+  if (typeof rules === 'string') document.getElementById('proxy-rules').value = rules;
+}
+
+document.getElementById('proxy-system').addEventListener('click', async () => {
+  const result = await window.chatbox.setProxy('system', '');
+  setProxyUi(result.proxyMode, result.proxyRules);
+  const statusEl = document.getElementById('proxy-status');
+  statusEl.className = 'status';
+  statusEl.textContent = '已切换为系统代理。';
+});
+
+document.getElementById('proxy-custom').addEventListener('click', () => {
+  setProxyUi('custom');
+});
+
+document.getElementById('proxy-apply').addEventListener('click', async () => {
+  const rules = document.getElementById('proxy-rules').value.trim();
+  const statusEl = document.getElementById('proxy-status');
+  if (!rules) {
+    statusEl.className = 'status error';
+    statusEl.textContent = '请填写代理规则,例如 http=127.0.0.1:7890;https=127.0.0.1:7890';
+    return;
+  }
+  const result = await window.chatbox.setProxy('custom', rules);
+  setProxyUi(result.proxyMode, result.proxyRules);
+  statusEl.className = 'status';
+  statusEl.textContent = '代理已应用,刷新页面后生效。';
+});
+
+for (const [buttonId, mode] of [['mode-floating', 'floating'], ['mode-docked', 'docked']]) {
+  document.getElementById(buttonId).addEventListener('click', async () => {
+    const result = await window.chatbox.setTitlebarMode(mode);
+    if (result.ok) setTitlebarModeUi(result.titlebarMode);
+  });
+}
+
+async function runUpdateCheck() {
+  const updateStatus = document.getElementById('update-status');
+  updateStatus.className = 'status';
+  updateStatus.textContent = '检查中…';
+  const result = await window.chatbox.checkUpdate();
+  if (!result.ok) {
+    updateStatus.className = 'status error';
+    updateStatus.textContent = `检查失败: ${result.error}`;
+  } else if (result.state === 'no-release') {
+    updateStatus.textContent = '尚未配置发布仓库,暂无可用更新。';
+  } else if (result.latest && result.latest !== result.current) {
+    updateStatus.textContent = `发现新版本 v${result.latest}(当前 v${result.current})。`;
+  } else {
+    updateStatus.textContent = `已是最新版本 v${result.current}。`;
+  }
+}
+
+document.getElementById('check-update').addEventListener('click', runUpdateCheck);
+window.chatbox.onCheckUpdate(runUpdateCheck);
+
+document.getElementById('panel-close').addEventListener('click', () => window.chatbox.closePanel());
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !document.activeElement.classList.contains('hotkey-input')) {
+    window.chatbox.closePanel();
+  }
+});
+window.addEventListener('blur', () => window.chatbox.closePanel());
+
+document.getElementById('open-ext').addEventListener('click', async () => {
+  await window.chatbox.registerHost();
+  await window.chatbox.openExtensionsPage();
+});
+document.getElementById('copy-path').addEventListener('click', async () => {
+  const extPath = await window.chatbox.extensionPath();
+  await navigator.clipboard.writeText(extPath);
+  importStatus.className = 'status';
+  importStatus.textContent = '路径已复制。在扩展页点「加载已解压的扩展程序」选择它,或直接拖入 crx。';
+});
+document.getElementById('do-import').addEventListener('click', async () => {
+  importStatus.className = 'status';
+  importStatus.textContent = '导入中…';
+  const result = await window.chatbox.runImport();
+  if (result.ok) {
+    const summary = Object.entries(result.imported)
+      .map(([id, count]) => `${id}: ${count}`)
+      .join(', ');
+    const failureText = result.failures && Object.keys(result.failures).length > 0
+      ? ` 部分失败: ${Object.entries(result.failures).map(([id, names]) => `${id}[${names.join('; ')}]`).join(' | ')}`
+      : '';
+    const storageText = result.storage && Object.keys(result.storage).length > 0
+      ? ` localStorage: ${Object.entries(result.storage).map(([id, count]) => `${id}: ${count}`).join(', ')}`
+      : '';
+    const statusText = result.storageStatus && Object.keys(result.storageStatus).length > 0
+      ? ` 采集状态: ${Object.entries(result.storageStatus).map(([origin, state]) => `${origin}=${state}`).join('; ')}`
+      : '';
+    importStatus.textContent = `导入完成(${summary}),页面已刷新。${storageText}${failureText}${statusText}`;
+    if (failureText) importStatus.className = 'status error';
+  } else if (result.reason === 'no-data') {
+    importStatus.className = 'status error';
+    importStatus.textContent = '还没有收到浏览器数据。请确认扩展已安装,并点一下扩展图标里的「发送登录态到 ChatAI」。';
+  } else {
+    importStatus.className = 'status error';
+    importStatus.textContent = `导入失败: ${result.reason || result.error}`;
+  }
+});
+
+window.chatbox.panelReady();

@@ -1,0 +1,80 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  user-select: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+#bar {
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px;
+  background: rgba(23, 24, 28, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(12px);
+}
+
+.card {
+  position: relative;
+  width: 76px;
+  height: 84px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  color: #c9cbd2;
+}
+
+.card.selected {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.name { font-size: 11px; }
+
+.num {
+  position: absolute;
+  top: 4px;
+  right: 7px;
+  font-size: 10px;
+  opacity: 0.55;
+}
+
+#hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+  background: rgba(23, 24, 28, 0.8);
+  padding: 3px 12px;
+  border-radius: 10px;
+}

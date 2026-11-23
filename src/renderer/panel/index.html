@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>ChatBox 面板</title>
+  <link rel="stylesheet" href="panel.css" />
+</head>
+<body>
+  <div class="card">
+    <div class="card-head">
+      <h2 id="panel-title">设置</h2>
+      <button id="panel-close" class="close-btn" title="关闭">
+        <svg viewBox="0 0 12 12" width="12" height="12" stroke="currentColor" stroke-width="1.4"><path d="M2 2l8 8M10 2l-8 8"/></svg>
+      </button>
+    </div>
+
+    <section id="settings-section">
+      <div class="setting-row">
+        <span class="hotkey-label">标题栏样式</span>
+        <div class="seg">
+          <button id="mode-floating" class="seg-btn">悬浮</button>
+          <button id="mode-docked" class="seg-btn">顶部固定</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="hotkey-label">指示条颜色</span>
+        <input id="accent-color" type="color" class="form-color" value="#ff5fa2" title="自定义颜色" />
+      </div>
+      <div class="setting-row">
+        <span class="hotkey-label"></span>
+        <div id="accent-swatches" class="swatches"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">主页地址</label>
+        <input id="home-url" class="form-input" placeholder="留空 = 当前站点首页" spellcheck="false" />
+        <button id="home-apply" class="btn">应用</button>
+      </div>
+      <p id="home-status" class="status"></p>
+      <div class="setting-row">
+        <span class="hotkey-label">网络代理</span>
+        <div class="seg">
+          <button id="proxy-system" class="seg-btn">系统代理</button>
+          <button id="proxy-custom" class="seg-btn">自定义</button>
+        </div>
+      </div>
+      <div id="proxy-custom-row" class="form-row hidden">
+        <label class="form-label">规则</label>
+        <input id="proxy-rules" class="form-input" placeholder="http=127.0.0.1:7890;https=127.0.0.1:7890" spellcheck="false" />
+        <button id="proxy-apply" class="btn">应用</button>
+      </div>
+      <p id="proxy-status" class="status"></p>
+      <p class="note">点击输入框后按下组合键即可录制;Backspace/Delete 清除,Esc 取消。需包含 Ctrl/Alt/Shift/Win 之一。</p>
+      <div class="hotkey-row">
+        <span class="hotkey-label">快捷切换面板</span>
+        <input class="hotkey-input" data-kind="switcher" readonly />
+      </div>
+      <div class="hotkey-row">
+        <span class="hotkey-label">唤起主窗口</span>
+        <input class="hotkey-input" data-kind="showApp" readonly />
+      </div>
+      <div id="site-hotkeys"></div>
+      <p id="hotkey-status" class="status"></p>
+      <div class="setting-row update-row">
+        <span class="hotkey-label">版本 <span id="version-text" class="version"></span></span>
+        <button id="check-update" class="btn">检查更新</button>
+      </div>
+      <p id="update-status" class="status"></p>
+    </section>
+
+    <section id="site-config-section" class="hidden">
+      <div class="form-row">
+        <label class="form-label">名称</label>
+        <input id="cfg-name" class="form-input" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">地址</label>
+        <input id="cfg-url" class="form-input" spellcheck="false" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">图标</label>
+        <div class="icon-picker">
+          <div id="cfg-icon-preview" class="icon-preview"></div>
+          <button id="cfg-upload" class="btn">上传图片</button>
+          <button id="cfg-fetch" class="btn">拉取网站图标</button>
+          <button id="cfg-clear-icon" class="btn ghost">恢复默认</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">颜色</label>
+        <div class="color-picker">
+          <div id="cfg-swatches" class="swatches"></div>
+          <input id="cfg-color" type="color" class="form-color" title="自定义颜色" />
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">快捷键</label>
+        <input id="cfg-hotkey" class="hotkey-input" data-kind="site" readonly />
+      </div>
+      <div class="form-row">
+        <label class="form-label">链接打开</label>
+        <label class="check-row"><input id="cfg-open-in-app" type="checkbox" /> 新链接在本应用内打开(默认交给系统浏览器)</label>
+      </div>
+      <p id="cfg-status" class="status"></p>
+      <div class="actions">
+        <button id="cfg-save" class="btn primary">保存</button>
+        <button id="cfg-disable" class="btn">隐藏此站点</button>
+        <button id="cfg-delete" class="btn danger">删除…</button>
+      </div>
+    </section>
+
+    <section id="site-add-section" class="hidden">
+      <div class="form-row">
+        <label class="form-label">名称</label>
+        <input id="add-name" class="form-input" placeholder="例如:Claude" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">地址</label>
+        <input id="add-url" class="form-input" placeholder="https://claude.ai/" spellcheck="false" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">颜色</label>
+        <div class="color-picker">
+          <div id="add-swatches" class="swatches"></div>
+          <input id="add-color" type="color" class="form-color" value="#4d6bfe" title="自定义颜色" />
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">图标</label>
+        <div class="icon-picker">
+          <div id="add-icon-preview" class="icon-preview"></div>
+          <button id="add-upload" class="btn">上传图片</button>
+          <button id="add-clear-icon" class="btn ghost">自动抓取</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">快捷键</label>
+        <input id="add-hotkey" class="hotkey-input" data-kind="new-site" readonly />
+      </div>
+      <div class="form-row">
+        <label class="form-label">链接打开</label>
+        <label class="check-row"><input id="add-open-in-app" type="checkbox" /> 新链接在本应用内打开(默认交给系统浏览器)</label>
+      </div>
+      <p class="note">不上传图标时会自动尝试从网站抓取;抓不到就用颜色+首字母。快捷键录制后随站点一起保存。</p>
+      <p id="add-status" class="status"></p>
+      <div class="actions">
+        <button id="add-save" class="btn primary">添加</button>
+      </div>
+    </section>
+
+    <section id="import-section" class="hidden">
+      <ol class="steps">
+        <li>点击下方按钮打开扩展管理页,开启「开发者模式」。</li>
+        <li>把 <code>dist\chatbox-cookie-bridge.crx</code> 拖进浏览器页面;若提示「程序包无效」或商店限制,改用「加载已解压的扩展程序」选择:<br /><code id="ext-path" class="path"></code></li>
+        <li>点浏览器工具栏的扩展图标 → 「发送登录态到 ChatBox」。</li>
+        <li>回到这里,点「导入」。</li>
+      </ol>
+      <div class="actions">
+        <button id="open-ext" class="btn">打开扩展管理页</button>
+        <button id="copy-path" class="btn">复制扩展路径</button>
+        <button id="do-import" class="btn primary">导入</button>
+      </div>
+      <p id="import-status" class="status"></p>
+    </section>
+  </div>
+  <script src="panel.js"></script>
+</body>
+</html>
