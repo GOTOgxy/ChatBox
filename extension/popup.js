@@ -22,6 +22,13 @@ function run(type, activeButton) {
         status.className = 'error';
         const hosts = (response.diag.storeHosts || []).join(', ');
         status.textContent = `发送 0 条。本浏览器 Cookie 总数: ${response.diag.totalInStore}。实际存在的域名: ${hosts || '(无)'}。请对照:你要导入的站点域名若不在此列表,说明登录态在别的浏览器/配置里。`;
+      } else if (response.diag && typeof response.diag.googleAuth === 'boolean') {
+        if (response.diag.googleAuth) {
+          status.textContent += ' Google 登录态:已检测到 ✓';
+        } else {
+          status.className = 'error';
+          status.textContent += ' ⚠ 未检测到 Google 登录态。请先在本浏览器打开 gemini.google.com 登录,再重新发送。';
+        }
       }
     } else {
       status.className = 'error';
