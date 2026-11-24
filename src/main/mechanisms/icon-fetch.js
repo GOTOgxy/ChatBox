@@ -12,11 +12,11 @@ function lockSvgLight(dataUrl) {
   }
 }
 
-async function fetchIconRaw(view, iconUrl) {
-  // 在主进程用站点会话发起请求:不受页面 CORS 限制(google favicon 服务等跨域候选才能成功),
+async function fetchIconRaw(ses, iconUrl) {
+  // 在主进程用会话发起请求:不受页面 CORS 限制(google favicon 服务等跨域候选才能成功),
   // 并自动走该会话的代理设置;不依赖页面是否渲染完成。
   try {
-    const response = await view.webContents.session.fetch(iconUrl, { credentials: 'omit' });
+    const response = await ses.fetch(iconUrl, { credentials: 'omit' });
     if (!response.ok) return { error: 'http-' + response.status };
     const type = response.headers.get('content-type') || '';
     const buffer = Buffer.from(await response.arrayBuffer());
@@ -68,10 +68,31 @@ async function run({ site, getView }) {
   candidates.push(`https://www.google.com/s2/favicons?domain=${new URL(site.url).hostname}&sz=64`);
   for (const iconUrl of candidates) {
     try {
-      const result = await fetchIconRaw(view, iconUrl);
+      const result = await fetchIconRaw(view.webContents.session, iconUrl);
       if (result && result.data) return { ok: true, icon: lockSvgLight(result.data) };
     } catch {
     }
+  }
+  return { ok: false };
+}
+
+async function previewByUrl(url, ses) {
+  let origin;
+  let hostname;
+  try {
+    const parsed = new URL(url);
+    origin = parsed.origin;
+    hostname = parsed.hostname;
+  } catch {
+    return { ok: false, error: 'bad-url' };
+  }
+  const candidates = [
+    `${origin}/favicon.ico`,
+    `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`
+  ];
+  for (const iconUrl of candidates) {
+    const result = await fetchIconRaw(ses, iconUrl);
+    if (result && result.data) return { ok: true, icon: lockSvgLight(result.data) };
   }
   return { ok: false };
 }
@@ -83,4 +104,4 @@ registry.register({
   run
 });
 
-module.exports = { run, lockSvgLight };
+module.exports = { run, lockSvgLight, previewByUrl };

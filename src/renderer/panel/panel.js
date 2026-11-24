@@ -545,9 +545,28 @@ document.getElementById('add-upload').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('add-clear-icon').addEventListener('click', () => {
-  addPendingIcon = null;
-  renderAddIconPreview();
+document.getElementById('add-clear-icon').addEventListener('click', async () => {
+  const statusEl = document.getElementById('add-status');
+  let url = document.getElementById('add-url').value.trim();
+  if (!url) {
+    statusEl.className = 'status error';
+    statusEl.textContent = '先填地址,再抓取图标。';
+    return;
+  }
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  statusEl.className = 'status';
+  statusEl.textContent = '抓取图标中…';
+  const result = await window.chatbox.previewIcon(url);
+  if (result.ok) {
+    addPendingIcon = result.icon;
+    renderAddIconPreview();
+    statusEl.textContent = '已抓取图标。';
+  } else {
+    addPendingIcon = null;
+    renderAddIconPreview();
+    statusEl.className = 'status error';
+    statusEl.textContent = '没抓到图标,添加后将用颜色+首字母。';
+  }
 });
 
 document.getElementById('add-name').addEventListener('input', renderAddIconPreview);

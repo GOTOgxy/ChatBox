@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('chatbox', {
   pickIcon: () => ipcRenderer.invoke('sites:pick-icon'),
   deleteSite: (id) => ipcRenderer.invoke('sites:delete', id),
   fetchIcon: (id) => ipcRenderer.invoke('sites:fetch-icon', id),
+  previewIcon: (url) => ipcRenderer.invoke('sites:preview-icon', url),
   setProxy: (mode, rules) => ipcRenderer.invoke('settings:set-proxy', mode, rules),
   setProxyStructured: (options) => ipcRenderer.invoke('settings:set-proxy-structured', options),
   setAccent: (color) => ipcRenderer.invoke('settings:set-accent', color),

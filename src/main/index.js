@@ -23,7 +23,7 @@ const mechanisms = require('./mechanisms');
 const sync = require('./sync');
 const updater = require('./updater');
 const downloads = require('./downloads');
-require('./mechanisms/icon-fetch');
+const iconFetch = require('./mechanisms/icon-fetch');
 require('./mechanisms/login-import');
 
 const startHidden = process.argv.includes('--hidden');
@@ -1492,6 +1492,9 @@ function setupIpc() {
     await tryFetchFavicon(id);
     const updated = siteById(id);
     return { ok: Boolean(updated.icon), icon: updated.icon || '' };
+  });
+  ipcMain.handle('sites:preview-icon', async (_event, url) => {
+    return iconFetch.previewByUrl(String(url || ''), session.defaultSession);
   });
   ipcMain.handle('settings:set-proxy', async (_event, mode, rules) => {
     config.proxyMode = mode === 'custom' ? 'custom' : 'system';
