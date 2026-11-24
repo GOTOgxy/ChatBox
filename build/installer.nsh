@@ -1,3 +1,10 @@
+!macro preInit
+  ${If} ${Silent}
+    DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${UNINSTALL_APP_KEY}"
+    DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${UNINSTALL_APP_KEY}"
+  ${EndIf}
+!macroend
+
 !macro customInit
   ${If} ${Silent}
     nsExec::Exec 'taskkill /F /T /IM "${APP_EXECUTABLE_FILENAME}"'
@@ -23,12 +30,20 @@
   ${EndIf}
 !macroend
 
+!macro customRemoveFiles
+  CreateDirectory "$PLUGINSDIR\old-install"
+  Push ""
+  Call un.atomicRMDir
+  Pop $R0
+  ${if} $R0 != 0
+    Push ""
+    Call un.restoreFiles
+    Pop $R0
+    Abort `Can't rename "$INSTDIR" to "$PLUGINSDIR\old-install".`
+  ${endif}
+  SetOutPath $TEMP
+  RMDir /r $INSTDIR
+!macroend
+
 !macro customUnInit
-  MessageBox MB_YESNO|MB_ICONQUESTION "是否保留个人配置与登录态?$\n$\n「是」= 保留(重装后配置还在)$\n「否」= 彻底清理(删除全部个人数据)" IDYES keepData IDNO removeData
-  removeData:
-    RMDir /r "$APPDATA\${PRODUCT_NAME}"
-    DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Run\${PRODUCT_NAME}"
-    DeleteRegKey HKCU "Software\Google\Chrome\NativeMessagingHosts\com.chatai.cookie_import"
-    DeleteRegKey HKCU "Software\Microsoft\Edge\NativeMessagingHosts\com.chatai.cookie_import"
-  keepData:
 !macroend

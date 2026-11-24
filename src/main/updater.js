@@ -10,6 +10,13 @@ const RELEASES_PAGE = `https://github.com/${REPO}/releases/latest`;
 
 let onProgress = () => {};
 
+function updateLog(line) {
+  try {
+    fs.appendFileSync(path.join(app.getPath('userData'), 'update.log'), `[${new Date().toISOString()}] ${line}\n`);
+  } catch {
+  }
+}
+
 function init({ progress }) {
   onProgress = progress || (() => {});
 }
@@ -120,7 +127,11 @@ async function downloadAndInstall(info, { relaunchHidden }) {
   const dest = path.join(os.tmpdir(), info.assetName || 'ChatBox-Setup.exe');
   const expected = await fetchExpectedSha256(info.checksumsUrl, info.assetName);
   const result = await downloadToFile(info.downloadUrl, dest, expected);
-  if (!result.ok) return { ok: false, error: result.error, state: 'download-failed', pageUrl: info.pageUrl || RELEASES_PAGE };
+  if (!result.ok) {
+    updateLog(`download failed: ${result.error}`);
+    return { ok: false, error: result.error, state: 'download-failed', pageUrl: info.pageUrl || RELEASES_PAGE };
+  }
+  updateLog(`download ok: ${dest} sha256=${result.sha256}`);
   onProgress({ phase: 'installing', percent: 100 });
   try {
     spawn(process.execPath, ['--quit-for-update'], { detached: true, stdio: 'ignore' }).unref();
@@ -129,8 +140,17 @@ async function downloadAndInstall(info, { relaunchHidden }) {
   }
   const args = ['/S'];
   if (relaunchHidden) args.push('--hidden');
-  const child = spawn(dest, args, { detached: true, stdio: 'ignore' });
-  child.unref();
+  try {
+    const cleanEnv = { ...process.env };
+    delete cleanEnv.ELECTRON_RUN_AS_NODE;
+    const child = spawn(dest, args, { detached: true, stdio: 'ignore', env: cleanEnv });
+    child.unref();
+    updateLog(`installer spawned: ${dest} ${args.join(' ')}`);
+  } catch (error) {
+    updateLog(`installer spawn failed: ${error.message || error}`);
+    shell.openExternal(info.pageUrl || RELEASES_PAGE);
+    return { ok: false, error: String(error.message || error), state: 'spawn-failed', pageUrl: info.pageUrl || RELEASES_PAGE };
+  }
   return { ok: true, state: 'installer-launched' };
 }
 
@@ -138,4 +158,4 @@ function openReleasesPage() {
   shell.openExternal(RELEASES_PAGE);
 }
 
-module.exports = { init, check, downloadAndInstall, openReleasesPage, RELEASES_PAGE };
+module.exports = { init, check, downloadAndInstall, openReleasesPage, updateLog, RELEASES_PAGE };

@@ -975,6 +975,13 @@ function setupIpc() {
       if (result.ok && result.state === 'installer-launched') {
         quitting = true;
         setTimeout(() => app.quit(), 300);
+        setTimeout(() => {
+          updater.updateLog('watchdog: still alive 25s after installer launch, opening releases page');
+          if (panelView && !panelView.webContents.isDestroyed()) {
+            panelView.webContents.send('update:progress', { phase: 'error', error: '安装未生效,已打开下载页,请手动安装。' });
+          }
+          updater.openReleasesPage();
+        }, 25000);
       }
       return result;
     } catch (error) {
