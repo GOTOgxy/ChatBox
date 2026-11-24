@@ -28,6 +28,21 @@ require('./mechanisms/login-import');
 
 const startHidden = process.argv.includes('--hidden');
 
+const GPU_MARKER = '.gpu-ok';
+const gpuMarkerPath = path.join(app.getPath('appData'), 'ChatBox', GPU_MARKER);
+let gpuMarked = false;
+let gpuSoftwareMode = false;
+try {
+  if (fs.existsSync(gpuMarkerPath)) {
+    fs.unlinkSync(gpuMarkerPath);
+  } else {
+    gpuSoftwareMode = true;
+    app.disableHardwareAcceleration();
+    app.commandLine.appendSwitch('disable-gpu-compositing');
+  }
+} catch {
+}
+
 const SIDEBAR_WIDTH = 64;
 const TITLEBAR_HEIGHT = 42;
 const ROOT = path.join(__dirname, '..', '..');
@@ -345,6 +360,18 @@ function themeBg() {
   return config.theme === 'light' ? '#f2f3f6' : '#17181c';
 }
 
+function markGpuHealthy() {
+  if (gpuMarked) return;
+  gpuMarked = true;
+  setTimeout(() => {
+    try {
+      fs.mkdirSync(path.dirname(gpuMarkerPath), { recursive: true });
+      fs.writeFileSync(gpuMarkerPath, String(Date.now()));
+    } catch {
+    }
+  }, 4000);
+}
+
 function applyWebTheme() {
   const mode = config.webTheme;
   nativeTheme.themeSource = mode === 'dark' || mode === 'light' ? mode : 'system';
@@ -538,6 +565,7 @@ function createMainWindow() {
   });
   sidebarView.webContents.once('did-finish-load', () => {
     if (!startHidden) mainWindow.show();
+    markGpuHealthy();
   });
   sidebarView.webContents.once('did-finish-load', () => {
     sendToSidebar('init', {

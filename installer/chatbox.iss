@@ -3,7 +3,7 @@
 ; kills the running app, overwrites files, then relaunches the new version.
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.5.2"
+  #define MyAppVersion "1.5.3"
 #endif
 #define MyAppName "ChatBox"
 #define MyAppPublisher "GOTOgxy"
