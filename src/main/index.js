@@ -192,6 +192,14 @@ function createSiteView(site) {
     const current = siteById(site.id);
     if (current && !current.icon) tryFetchFavicon(site.id);
   });
+  view.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (!isMainFrame || errorCode === -3) return;
+    setTimeout(() => {
+      if (!view.webContents.isDestroyed() && view.webContents.getURL() === validatedURL) {
+        view.webContents.reload();
+      }
+    }, 1500);
+  });
   view.webContents.on('page-title-updated', (_event, title) => {
     const match = title.match(/^\((\d+)\)/);
     const unread = match ? Number(match[1]) : 0;
@@ -839,6 +847,14 @@ function rebuildTrayMenu() {
       }
     },
     { type: 'separator' },
+    {
+      label: '重启',
+      click: () => {
+        app.relaunch();
+        quitting = true;
+        app.quit();
+      }
+    },
     {
       label: '退出',
       click: () => {
