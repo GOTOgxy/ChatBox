@@ -133,19 +133,18 @@ async function downloadAndInstall(info, { relaunchHidden }) {
   }
   updateLog(`download ok: ${dest} sha256=${result.sha256}`);
   onProgress({ phase: 'installing', percent: 100 });
-  try {
-    spawn(process.execPath, ['--quit-for-update'], { detached: true, stdio: 'ignore' }).unref();
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-  } catch {
-  }
-  const args = ['/S'];
-  if (relaunchHidden) args.push('--hidden');
+  const args = ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-'];
   try {
     const cleanEnv = { ...process.env };
     delete cleanEnv.ELECTRON_RUN_AS_NODE;
-    const child = spawn('explorer.exe', [`"${dest}" ${args.join(' ')}`], { stdio: 'ignore', env: cleanEnv });
+    const child = spawn(dest, args, {
+      detached: true,
+      stdio: 'ignore',
+      env: cleanEnv,
+      windowsHide: true
+    });
     child.unref();
-    updateLog(`installer spawned via explorer: ${dest} ${args.join(' ')}`);
+    updateLog(`installer spawned (detached): ${dest} ${args.join(' ')}`);
   } catch (error) {
     updateLog(`installer spawn failed: ${error.message || error}`);
     shell.openExternal(info.pageUrl || RELEASES_PAGE);
