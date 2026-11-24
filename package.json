@@ -12,7 +12,8 @@
     "pack:crx": "node scripts/pack-crx.js",
     "dist:win": "electron-builder --win nsis",
     "dist:mac": "electron-builder --mac dmg",
-    "checksums": "node scripts/make-checksums.js"
+    "checksums": "node scripts/make-checksums.js",
+    "release": "node scripts/release.js"
   },
   "devDependencies": {
     "electron": "^38.0.0",

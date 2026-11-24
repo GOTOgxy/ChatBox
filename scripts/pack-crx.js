@@ -74,7 +74,17 @@ function collectFiles(dir, base = '') {
   return result;
 }
 
-const privateKey = crypto.createPrivateKey(fs.readFileSync(KEY_PATH));
+function loadOrCreatePrivateKey() {
+  if (fs.existsSync(KEY_PATH)) {
+    return crypto.createPrivateKey(fs.readFileSync(KEY_PATH));
+  }
+  console.error('assets/extension-private.pem missing: cannot sign CRX.');
+  console.error('Dev: load the extension/ folder unpacked in chrome://extensions (same official ID via key.txt).');
+  console.error('Release signing requires the private key from the maintainer.');
+  process.exit(1);
+}
+
+const privateKey = loadOrCreatePrivateKey();
 const publicKeyDer = crypto.createPublicKey(privateKey).export({ type: 'spki', format: 'der' });
 const zip = zipStore(collectFiles(EXT_DIR));
 

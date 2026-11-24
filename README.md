@@ -29,7 +29,13 @@ npm run dist:win     # Windows: release/ChatBox-Setup-x.y.z.exe(NSIS,可选安�
 npm run dist:mac     # macOS: release/ChatBox-x.y.z-{arm64,x64}.dmg(需在 macOS 上执行)
 ```
 
-国内网络需先设 `$env:ELECTRON_MIRROR='https://npmmirror.com/mirrors/electron/'` 与 `$env:ELECTRON_BUILDER_BINARIES_MIRROR='https://npmmirror.com/mirrors/electron-builder-binaries/'`。DMG 无法在 Windows/Linux 上交叉构建(apple 工具链限制),在 Mac 上克隆仓库执行 `npm install && npm run pack:crx && npm run dist:mac` 即可;未配置签名证书时产物为未签名应用,macOS 首次打开需右键「打开」。
+国内网络需先设 `$env:ELECTRON_MIRROR='https://npmmirror.com/mirrors/electron/'` 与 `$env:ELECTRON_BUILDER_BINARIES_MIRROR='https://npmmirror.com/mirrors/electron-builder-binaries/'`。DMG 无法在 Windows/Linux 上交叉构建(apple 工具链限制),在 Mac 上克隆仓库执行 `npm install && npm run dist:mac` 即可;未配置签名证书时产物为未签名应用,macOS 首次打开需右键「打开」。
+
+CRX 签名私钥 `assets/extension-private.pem` 不入库。没有私钥的开发者(如 Mac 协作开发)无需打包 crx:直接用「加载已解压的扩展程序」选择 `extension/` 目录,扩展 ID 由 `extension/key.txt` 固定,与正式版一致。`npm run pack:crx` 仅在持有私钥的发布机上执行。
+
+## 发布
+
+Windows 发布流程:先 `npm run dist:win` 生成 `release/win-unpacked`,再用 Inno Setup 编译 `installer/chatbox.iss` 得到 `release/ChatBox-Setup-x.y.z.exe`,最后执行 `npm run release -- --notes "更新说明"`。发布脚本会自动打包 crx、生成 checksums(覆盖 exe 与 crx),并通过 gh 一并上传 exe + crx + checksums 到 GitHub Release。每个 Release 必须包含 crx。
 
 ## 快捷键
 
