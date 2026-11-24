@@ -54,6 +54,9 @@ if (forceSoftware) {
   app.commandLine.appendSwitch('disable-gpu-compositing');
 }
 
+// 从引擎层面去掉 navigator.webdriver 自动化标记(比 JS 覆盖更干净)
+app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+
 const SIDEBAR_WIDTH = 64;
 const TITLEBAR_HEIGHT = 42;
 const ROOT = path.join(__dirname, '..', '..');
@@ -135,6 +138,16 @@ function chromeUserAgent() {
         ? 'Macintosh; Intel Mac OS X 10_15_7'
         : 'X11; Linux x86_64';
   return `Mozilla/5.0 (${platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeMajor}.0.0.0 Safari/537.36`;
+}
+
+function firefoxUserAgent() {
+  const platform =
+    process.platform === 'win32'
+      ? 'Windows NT 10.0; Win64; x64'
+      : process.platform === 'darwin'
+        ? 'Macintosh; Intel Mac OS X 10.15'
+        : 'X11; Linux x86_64';
+  return `Mozilla/5.0 (${platform}; rv:133.0) Gecko/20100101 Firefox/133.0`;
 }
 
 function siteSession(site) {
@@ -219,9 +232,21 @@ function attachClientHints(ses) {
   if (ses.__chatboxClientHints) return;
   ses.__chatboxClientHints = true;
   ses.webRequest.onBeforeSendHeaders({ urls: ['*://*/*'] }, (details, callback) => {
+    const headers = { ...details.requestHeaders };
+    let host = '';
+    try { host = new URL(details.url).hostname; } catch (e) {}
+    // Google 登录页伪装 Firefox:Firefox 不发送 Chromium client hints,
+    // Google 据此跳过对 Chrome/Electron 内嵌环境的深度校验。
+    if (/(^|\.)accounts\.google\.com$/.test(host)) {
+      for (const key of Object.keys(headers)) {
+        const lower = key.toLowerCase();
+        if (lower.startsWith('sec-ch-ua') || lower === 'user-agent') delete headers[key];
+      }
+      headers['User-Agent'] = firefoxUserAgent();
+      return callback({ requestHeaders: headers });
+    }
     const hints = chromeClientHints(chromeUserAgent());
     if (!hints) return callback({});
-    const headers = { ...details.requestHeaders };
     for (const [name, value] of Object.entries(hints)) {
       for (const key of Object.keys(headers)) {
         if (key.toLowerCase() === name.toLowerCase()) delete headers[key];
