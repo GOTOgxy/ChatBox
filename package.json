@@ -40,10 +40,6 @@
       {
         "from": "extension",
         "to": "extension"
-      },
-      {
-        "from": "dist/chatbox-cookie-bridge.crx",
-        "to": "chatbox-cookie-bridge.crx"
       }
     ],
     "asar": true,

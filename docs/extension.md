@@ -4,7 +4,7 @@ ChatBox 通过一个 Chrome 扩展 + Native Messaging(本机进程通信)把浏�
 
 ## CRX 是什么,为什么通常用不了
 
-安装包里的 `chatbox-cookie-bridge.crx` **只是扩展的一种打包分发形式**(CRX3 格式,带签名),不是另一种功能。Chrome 出于安全策略,**默认拦截来自 Chrome 商店以外的 crx 安装**——拖进去多半会被拒绝或装完即禁用。
+`chatbox-cookie-bridge.crx` **只是扩展的一种打包分发形式**(CRX3 格式,带签名,由 `npm run pack:crx` 在持有私钥的发布机上生成,目前不随安装包分发),不是另一种功能。Chrome 出于安全策略,**默认拦截来自 Chrome 商店以外的 crx 安装**——拖进去多半会被拒绝或装完即禁用。
 
 因此大多数情况下,正确姿势是:**直接加载已解压的扩展目录**,效果与 crx 完全一致。
 

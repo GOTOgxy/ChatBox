@@ -843,7 +843,7 @@ document.getElementById('copy-path').addEventListener('click', async () => {
   const extPath = await window.chatbox.extensionPath();
   await navigator.clipboard.writeText(extPath);
   importStatus.className = 'status';
-  importStatus.textContent = '路径已复制。在扩展页点「加载已解压的扩展程序」选择它,或直接拖入 crx。';
+  importStatus.textContent = '路径已复制。在扩展页点「加载已解压的扩展程序」选择它。';
 });
 document.getElementById('do-import').addEventListener('click', async () => {
   importStatus.className = 'status';

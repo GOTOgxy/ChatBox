@@ -34,17 +34,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Restore extension signing key
-        shell: bash
-        env:
-          EXTENSION_PEM: ${{ secrets.EXTENSION_PRIVATE_PEM }}
-        run: |
-          if [ -z "$EXTENSION_PEM" ]; then
-            echo "::error::secret EXTENSION_PRIVATE_PEM is not set"
-            exit 1
-          fi
-          printf '%s' "$EXTENSION_PEM" > assets/extension-private.pem
-
       - name: Build Windows installer
         if: matrix.kind == 'win'
         shell: pwsh
@@ -60,17 +49,12 @@ jobs:
         if: matrix.kind == 'mac'
         run: npm run dist:mac
 
-      - name: Pack CRX
-        if: matrix.kind == 'mac'
-        run: npm run pack:crx
-
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.kind }}
           path: |
             release/ChatBox-Setup-*.exe
             release/*.dmg
-            dist/*.crx
           if-no-files-found: error
 
   release:
@@ -86,7 +70,7 @@ jobs:
       - name: Assemble release directory
         run: |
           mkdir -p release
-          find artifacts -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.crx' \) -exec cp {} release/ \;
+          find artifacts -type f \( -name '*.exe' -o -name '*.dmg' \) -exec cp {} release/ \;
           ls -la release/
           node scripts/make-checksums.js
 
@@ -104,7 +88,7 @@ jobs:
           else
             tag="v$version"
           fi
-          assets=(release/*.exe release/*.dmg release/*.crx release/checksums.txt)
+          assets=(release/*.exe release/*.dmg release/checksums.txt)
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$tag" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
             echo "release $tag updated (CI build)"
@@ -113,7 +97,7 @@ jobs:
               --title "ChatBox $version" --target "$GITHUB_SHA" \
               --notes "ChatBox $version
 
-          由 GitHub Actions 自动构建发布(Windows exe + macOS arm64 dmg + crx + checksums)。
+          由 GitHub Actions 自动构建发布(Windows exe + macOS arm64 dmg + checksums)。
 
           【mac 安装必读】浏览器下载的 DMG 带隔离标记,首次打开报「已损坏」时执行:
           xattr -dr com.apple.quarantine /Applications/ChatBox.app"

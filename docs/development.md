@@ -72,7 +72,7 @@ docs/                      用户与开发文档
 
 ### 推荐:GitHub Actions 一键发版(任意一台机器)
 
-仓库配置了 `.github/workflows/release.yml`:推送 `v*` tag 后,云端 Windows + macOS runner **并行构建** exe(Inno Setup)与 arm64 dmg,打包 crx、生成 checksums,自动创建/更新同一个 GitHub Release。不再需要两台机器分别构建。
+仓库配置了 `.github/workflows/release.yml`:推送 `v*` tag 后,云端 Windows + macOS runner **并行构建** exe(Inno Setup)与 arm64 dmg,生成 checksums,自动创建/更新同一个 GitHub Release。不再需要两台机器分别构建。crx 目前不参与 CI 发布(扩展以已解压目录随应用分发,功能不受影响)。
 
 发版三步(在哪台机器上都行):
 
@@ -82,7 +82,7 @@ docs/                      用户与开发文档
 git tag v1.5.x && git push origin main v1.5.x
 ```
 
-前提:仓库 secret `EXTENSION_PRIVATE_PEM` 已设置为扩展签名私钥(`assets/extension-private.pem`)的完整内容,CI 用它打包 crx。设置方式:
+如需 CI 恢复 crx 打包:设置仓库 secret `EXTENSION_PRIVATE_PEM` 为扩展签名私钥(`assets/extension-private.pem`)完整内容,并在 workflow 中恢复私钥还原与 pack:crx 步骤。设置方式:
 
 ```bash
 gh secret set EXTENSION_PRIVATE_PEM --repo GOTOgxy/ChatBox < assets/extension-private.pem
@@ -117,7 +117,7 @@ DMG 无法在 Windows/Linux 交叉构建。产物为 ad-hoc 签名,浏览器下�
 - Release 不存在 → 创建 `v{version}` 并上传本机产物;
 - Release 已存在 → **追加上传**(`--clobber`),并下载合并远端 checksums,保留另一端条目。
 
-因此两端发同一版本:一端先创建,另一端拉取最新代码、构建后直接 `npm run release` 追加到同一 Release。每个 Release 必须包含 crx。
+因此两端发同一版本:一端先创建,另一端拉取最新代码、构建后直接 `npm run release` 追加到同一 Release。本地发布机持有私钥时会附带 crx;CI 发布暂不含 crx。
 
 ### 版本号清单
 
