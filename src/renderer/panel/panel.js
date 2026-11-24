@@ -864,11 +864,15 @@ document.getElementById('copy-path').addEventListener('click', async () => {
 document.getElementById('do-import').addEventListener('click', async () => {
   importStatus.className = 'status';
   importStatus.textContent = '导入中…';
-  const result = await window.chatbox.runImport();
+  const skipGoogle = document.getElementById('import-skip-google').checked;
+  const result = await window.chatbox.runImport(skipGoogle);
   if (result.ok) {
     const summary = Object.entries(result.imported)
       .map(([id, count]) => `${id}: ${count}`)
       .join(', ');
+    const skippedText = result.skipped && result.skipped.length > 0
+      ? ` 已跳过: ${result.skipped.join(', ')}（建议应用内直登）`
+      : '';
     const failureText = result.failures && Object.keys(result.failures).length > 0
       ? ` 部分失败: ${Object.entries(result.failures).map(([id, names]) => `${id}[${names.join('; ')}]`).join(' | ')}`
       : '';
@@ -878,7 +882,7 @@ document.getElementById('do-import').addEventListener('click', async () => {
     const statusText = result.storageStatus && Object.keys(result.storageStatus).length > 0
       ? ` 采集状态: ${Object.entries(result.storageStatus).map(([origin, state]) => `${origin}=${state}`).join('; ')}`
       : '';
-    importStatus.textContent = `导入完成(${summary}),页面已刷新。${storageText}${failureText}${statusText}`;
+    importStatus.textContent = `导入完成(${summary}),页面已刷新。${skippedText}${storageText}${failureText}${statusText}`;
     if (failureText) importStatus.className = 'status error';
   } else if (result.reason === 'no-data') {
     importStatus.className = 'status error';
