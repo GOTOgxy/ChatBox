@@ -335,14 +335,41 @@ function layoutViews() {
   const height = bounds.height;
   const dockedShown = config.titlebarMode === 'docked' && dockedTitlebarVisible;
   const topOffset = dockedShown ? TITLEBAR_HEIGHT : 0;
-  sidebarView.setBounds({ x: 0, y: topOffset, width: SIDEBAR_WIDTH, height: Math.max(0, height - topOffset) });
+  setViewBoundsNudged(sidebarView, { x: 0, y: topOffset, width: SIDEBAR_WIDTH, height: Math.max(0, height - topOffset) });
   const activeView = siteViews.get(activeSiteId);
   if (activeView) {
-    activeView.setBounds({ x: SIDEBAR_WIDTH, y: topOffset, width: Math.max(0, width - SIDEBAR_WIDTH), height: Math.max(0, height - topOffset) });
+    setViewBoundsNudged(activeView, { x: SIDEBAR_WIDTH, y: topOffset, width: Math.max(0, width - SIDEBAR_WIDTH), height: Math.max(0, height - topOffset) });
   }
   if (dockedShown && titlebarView && !titlebarView.webContents.isDestroyed()) {
-    titlebarView.setBounds({ x: 0, y: 0, width, height: TITLEBAR_HEIGHT });
+    setViewBoundsNudged(titlebarView, { x: 0, y: 0, width, height: TITLEBAR_HEIGHT });
   }
+}
+
+function setViewBoundsNudged(view, bounds) {
+  if (!view || view.webContents.isDestroyed()) return;
+  const current = view.getBounds();
+  const sameBounds = current.x === bounds.x && current.y === bounds.y && current.width === bounds.width && current.height === bounds.height;
+  if (sameBounds && view.__chatboxPainted && !view.__chatboxForcePaint) {
+    return;
+  }
+  view.__chatboxForcePaint = false;
+  view.__chatboxPainted = true;
+  if (sameBounds) {
+    view.setBounds({ ...bounds, height: bounds.height + 1 });
+    setTimeout(() => {
+      if (!view.webContents.isDestroyed()) view.setBounds(bounds);
+    }, 30);
+  } else {
+    view.setBounds(bounds);
+  }
+}
+
+function forceRepaintViews() {
+  if (sidebarView && !sidebarView.webContents.isDestroyed()) sidebarView.__chatboxForcePaint = true;
+  const activeView = siteViews.get(activeSiteId);
+  if (activeView && !activeView.webContents.isDestroyed()) activeView.__chatboxForcePaint = true;
+  if (titlebarView && !titlebarView.webContents.isDestroyed()) titlebarView.__chatboxForcePaint = true;
+  layoutViews();
 }
 
 function activateSite(id, { focus = true } = {}) {
@@ -403,6 +430,20 @@ function showMainWindow() {
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.show();
   mainWindow.focus();
+  nudgeMainWindow();
+  setTimeout(forceRepaintViews, 150);
+}
+
+function nudgeMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.isMaximized() || mainWindow.isMinimized()) return;
+  const bounds = mainWindow.getBounds();
+  mainWindow.setBounds({ ...bounds, height: bounds.height + 1 });
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isMaximized()) {
+      const current = mainWindow.getBounds();
+      if (current.height === bounds.height + 1) mainWindow.setBounds(bounds);
+    }
+  }, 60);
 }
 
 function toggleMainWindow() {
@@ -494,6 +535,13 @@ function createMainWindow() {
   };
   mainWindow.on('resize', scheduleBoundsPersist);
   mainWindow.on('move', scheduleBoundsPersist);
+  const refreshPaint = () => {
+    forceRepaintViews();
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(themeBg());
+    if (sidebarView && !sidebarView.webContents.isDestroyed()) sidebarView.setBackgroundColor(themeBg());
+  };
+  mainWindow.on('show', refreshPaint);
+  mainWindow.on('restore', refreshPaint);
   mainWindow.on('close', (event) => {
     if (!quitting) {
       event.preventDefault();
@@ -501,7 +549,12 @@ function createMainWindow() {
     }
   });
   sidebarView.webContents.once('did-finish-load', () => {
-    if (!startHidden) mainWindow.show();
+    if (!startHidden) {
+      mainWindow.show();
+      nudgeMainWindow();
+      setTimeout(() => { nudgeMainWindow(); forceRepaintViews(); }, 300);
+      setTimeout(() => { nudgeMainWindow(); forceRepaintViews(); }, 1000);
+    }
   });
   sidebarView.webContents.once('did-finish-load', () => {
     sendToSidebar('init', {
