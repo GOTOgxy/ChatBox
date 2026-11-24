@@ -252,3 +252,28 @@ body::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 2px; }
 }
 
 .tool-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+.downloads-btn { position: relative; }
+
+.downloads-btn.has-downloads { color: var(--text-dim); }
+
+.downloads-btn.downloading { color: var(--accent); }
+
+.downloads-count {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.downloads-count.show { display: flex; }

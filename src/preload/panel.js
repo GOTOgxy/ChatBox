@@ -40,6 +40,15 @@ contextBridge.exposeInMainWorld('chatbox', {
   onSyncStatus: (callback) => ipcRenderer.on('sync:status', (_event, data) => callback(data)),
   setTheme: (theme) => ipcRenderer.invoke('settings:set-theme', theme),
   setWebTheme: (mode) => ipcRenderer.invoke('settings:set-web-theme', mode),
+  setDragStrip: (enabled) => ipcRenderer.invoke('settings:set-drag-strip', enabled),
+  downloadsList: () => ipcRenderer.invoke('downloads:list'),
+  downloadsPause: (id) => ipcRenderer.invoke('downloads:pause', id),
+  downloadsResume: (id) => ipcRenderer.invoke('downloads:resume', id),
+  downloadsCancel: (id) => ipcRenderer.invoke('downloads:cancel', id),
+  downloadsOpen: (id) => ipcRenderer.invoke('downloads:open', id),
+  downloadsFolder: (id) => ipcRenderer.invoke('downloads:folder', id),
+  downloadsRemove: (id) => ipcRenderer.invoke('downloads:remove', id),
+  onDownloadsUpdate: (callback) => ipcRenderer.on('downloads:update', (_event, data) => callback(data)),
   confirmDanger: (options) => ipcRenderer.invoke('dialog:confirm-danger', options),
   onThemeUpdate: (callback) => ipcRenderer.on('theme:update', (_event, data) => callback(data))
 });

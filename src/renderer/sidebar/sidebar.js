@@ -199,3 +199,16 @@ document.getElementById('settings-btn').addEventListener('click', () => {
 document.getElementById('import-btn').addEventListener('click', () => {
   window.chatbox.openPanel('import');
 });
+document.getElementById('downloads-btn').addEventListener('click', () => {
+  window.chatbox.openPanel('downloads');
+});
+
+window.chatbox.onDownloadsUpdate(({ downloads }) => {
+  const active = downloads.filter((item) => item.state === 'progressing').length;
+  const btn = document.getElementById('downloads-btn');
+  const count = document.getElementById('downloads-count');
+  btn.classList.toggle('has-downloads', downloads.length > 0);
+  btn.classList.toggle('downloading', active > 0);
+  count.textContent = active > 0 ? String(active) : '';
+  count.classList.toggle('show', active > 0);
+});

@@ -368,6 +368,57 @@ html, body {
 
 .btn.ghost { border-color: transparent; background: transparent; color: var(--text-mute); }
 
+.download-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  background: var(--card-bg);
+}
+
+.download-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.download-name {
+  font-size: 12.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-state { font-size: 11px; color: var(--text-mute); }
+
+.download-progress {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--bg-input);
+  overflow: hidden;
+}
+
+.download-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.2s;
+}
+
+.download-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.download-actions .btn { padding: 4px 8px; font-size: 11.5px; }
+
 .btn.danger { border-color: #7a3036; background: transparent; color: var(--err); }
 .btn.danger:hover { background: rgba(229, 72, 77, 0.12); }
 

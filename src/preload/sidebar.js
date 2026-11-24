@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('chatbox', {
   onOpened: (callback) => ipcRenderer.on('sites:opened', (_event, data) => callback(data)),
   onAccentUpdate: (callback) => ipcRenderer.on('accent:update', (_event, data) => callback(data)),
   onThemeUpdate: (callback) => ipcRenderer.on('theme:update', (_event, data) => callback(data)),
+  onDownloadsUpdate: (callback) => ipcRenderer.on('downloads:update', (_event, data) => callback(data)),
   activate: (id) => ipcRenderer.send('site:activate', id),
   openExternal: (id) => ipcRenderer.send('site:open-external', id),
   reload: (id) => ipcRenderer.send('site:reload', id),

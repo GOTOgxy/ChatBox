@@ -22,6 +22,7 @@ const nativeHost = require('./native-host');
 const mechanisms = require('./mechanisms');
 const sync = require('./sync');
 const updater = require('./updater');
+const downloads = require('./downloads');
 require('./mechanisms/icon-fetch');
 require('./mechanisms/login-import');
 
@@ -111,7 +112,19 @@ function chromeUserAgent() {
 }
 
 function siteSession(site) {
-  return session.fromPartition(`persist:${site.id}`);
+  const ses = session.fromPartition(`persist:${site.id}`);
+  if (!ses.__chatboxDragPreload) {
+    ses.__chatboxDragPreload = true;
+    try {
+      ses.registerPreloadScript({
+        id: 'chatbox-drag-strip',
+        type: 'frame',
+        filePath: path.join(__dirname, '..', 'preload', 'site-drag.js')
+      });
+    } catch {
+    }
+  }
+  return ses;
 }
 
 async function applyProxy() {
@@ -161,6 +174,77 @@ function attachProxyAuth() {
   }
 }
 
+const DRAG_STRIP_ID = '__chatbox_drag_strip__';
+
+function dragStripInjectCode() {
+  return `(() => {
+    const existing = document.getElementById('${DRAG_STRIP_ID}');
+    if (existing) existing.remove();
+    if (!${config.webDragStrip ? 'true' : 'false'}) return;
+    const strip = document.createElement('div');
+    strip.id = '${DRAG_STRIP_ID}';
+    strip.style.cssText = 'position:fixed;top:0;left:0;right:0;height:6px;z-index:2147483647;cursor:grab;background:transparent;';
+    let timer = null;
+    let startX = 0;
+    let startY = 0;
+    let dragging = false;
+    const stop = () => {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (dragging) { dragging = false; strip.style.cursor = 'grab'; window.chatboxDrag.stripEnd(); }
+    };
+    strip.addEventListener('mousedown', (event) => {
+      if (event.button !== 0) return;
+      startX = event.screenX;
+      startY = event.screenY;
+      timer = setTimeout(() => {
+        dragging = true;
+        strip.style.cursor = 'grabbing';
+        window.chatboxDrag.stripStart(startX, startY);
+      }, 350);
+    });
+    strip.addEventListener('mousemove', (event) => {
+      if (timer && Math.hypot(event.screenX - startX, event.screenY - startY) > 4) { clearTimeout(timer); timer = null; }
+    });
+    strip.addEventListener('mouseup', stop);
+    strip.addEventListener('mouseleave', stop);
+    document.documentElement.appendChild(strip);
+  })()`;
+}
+
+function applyDragStripToView(view) {
+  if (!view || view.webContents.isDestroyed()) return;
+  view.webContents.executeJavaScript(dragStripInjectCode()).catch(() => {});
+}
+
+function applyDragStripToAll() {
+  for (const view of siteViews.values()) applyDragStripToView(view);
+}
+
+let stripDragTimer = null;
+let stripDragLast = null;
+
+function startStripDrag(screenX, screenY) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  stripDragLast = { x: screenX, y: screenY };
+  clearInterval(stripDragTimer);
+  stripDragTimer = setInterval(() => {
+    if (!mainWindow || mainWindow.isDestroyed() || !stripDragLast) return;
+    const cursor = screen.getCursorScreenPoint();
+    const dx = cursor.x - stripDragLast.x;
+    const dy = cursor.y - stripDragLast.y;
+    if (dx === 0 && dy === 0) return;
+    stripDragLast = { x: cursor.x, y: cursor.y };
+    const bounds = mainWindow.getBounds();
+    mainWindow.setBounds({ x: bounds.x + dx, y: bounds.y + dy, width: bounds.width, height: bounds.height });
+  }, 16);
+}
+
+function endStripDrag() {
+  clearInterval(stripDragTimer);
+  stripDragTimer = null;
+  stripDragLast = null;
+}
+
 function createSiteView(site) {
   const partition = siteSession(site);
   partition.setUserAgent(chromeUserAgent());
@@ -168,6 +252,7 @@ function createSiteView(site) {
     partition.setProxy({ mode: 'fixed_servers', proxyRules: config.proxyRules }).catch(() => {});
   }
   attachProxyAuth();
+  downloads.attach(partition);
   const view = new WebContentsView({
     webPreferences: {
       partition: `persist:${site.id}`,
@@ -191,6 +276,7 @@ function createSiteView(site) {
   view.webContents.on('did-finish-load', () => {
     const current = siteById(site.id);
     if (current && !current.icon) tryFetchFavicon(site.id);
+    applyDragStripToView(view);
   });
   view.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
     if (!isMainFrame || errorCode === -3) return;
@@ -590,6 +676,12 @@ function flushPanelPayload() {
 
 function openPanel(mode, extra = {}) {
   ensurePanelWindow();
+  const targetSize = mode === 'downloads' ? { width: 560, height: 520 } : { width: 540, height: 580 };
+  const currentSize = panelWindow.getContentBounds();
+  if (currentSize.width !== targetSize.width || currentSize.height !== targetSize.height) {
+    panelWindow.setContentSize(targetSize.width, targetSize.height);
+    panelView.setBounds({ x: 0, y: 0, width: targetSize.width, height: targetSize.height });
+  }
   const mainBounds = mainWindow.getBounds();
   const panelBounds = panelWindow.getBounds();
   const display = screen.getDisplayMatching(mainBounds);
@@ -915,6 +1007,22 @@ function setupIpc() {
   });
   ipcMain.on('window:close', () => mainWindow && mainWindow.close());
   ipcMain.on('panel:open', (_event, mode) => openPanel(mode));
+  ipcMain.on('drag-strip:start', (_event, { screenX, screenY }) => startStripDrag(screenX, screenY));
+  ipcMain.on('drag-strip:end', () => endStripDrag());
+  ipcMain.handle('settings:set-drag-strip', (_event, enabled) => {
+    config.webDragStrip = Boolean(enabled);
+    configStore.save(config);
+    sync.schedulePush();
+    applyDragStripToAll();
+    return { ok: true, webDragStrip: config.webDragStrip };
+  });
+  ipcMain.handle('downloads:list', () => downloads.list());
+  ipcMain.handle('downloads:pause', (_event, id) => { downloads.pause(id); return { ok: true }; });
+  ipcMain.handle('downloads:resume', (_event, id) => { downloads.resume(id); return { ok: true }; });
+  ipcMain.handle('downloads:cancel', (_event, id) => { downloads.cancel(id); return { ok: true }; });
+  ipcMain.handle('downloads:open', (_event, id) => { downloads.openFile(id); return { ok: true }; });
+  ipcMain.handle('downloads:folder', (_event, id) => { downloads.showInFolder(id); return { ok: true }; });
+  ipcMain.handle('downloads:remove', (_event, id) => { downloads.remove(id); return { ok: true }; });
   ipcMain.on('panel:close', hidePanel);
   ipcMain.on('panel:ready', () => {
     panelReady = true;
@@ -987,7 +1095,8 @@ function setupIpc() {
     accentColor: config.accentColor,
     homeUrl: config.homeUrl || '',
     theme: config.theme || 'dark',
-    webTheme: config.webTheme || 'system'
+    webTheme: config.webTheme || 'system',
+    webDragStrip: Boolean(config.webDragStrip)
   }));
   ipcMain.handle('settings:set-titlebar-mode', (_event, mode) => setTitlebarMode(mode));
   ipcMain.handle('settings:set-theme', (_event, theme) => {
@@ -1417,6 +1526,14 @@ if (!gotLock) {
     applyWebTheme();
     applyProxy().catch(() => {});
     attachProxyAuth();
+    downloads.init({
+      change: (list) => {
+        sendToSidebar('downloads:update', { downloads: list });
+        if (panelView && !panelView.webContents.isDestroyed()) {
+          panelView.webContents.send('downloads:update', { downloads: list });
+        }
+      }
+    });
     try {
       nativeHost.register();
     } catch {

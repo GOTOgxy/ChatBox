@@ -71,6 +71,7 @@ const settingsSection = document.getElementById('settings-section');
 const importSection = document.getElementById('import-section');
 const siteConfigSection = document.getElementById('site-config-section');
 const siteAddSection = document.getElementById('site-add-section');
+const downloadsSection = document.getElementById('downloads-section');
 const panelTitle = document.getElementById('panel-title');
 const hotkeyStatus = document.getElementById('hotkey-status');
 const importStatus = document.getElementById('import-status');
@@ -184,17 +185,19 @@ window.chatbox.onPanelShow(async (data) => {
   sites = data.sites || [];
   hotkeys = data.hotkeys || { switcher: '', showApp: '', sites: {} };
   document.querySelector('.card').classList.add('ready');
-  const mode = ['import', 'site-config', 'site-add'].includes(data.mode) ? data.mode : 'settings';
+  const mode = ['import', 'site-config', 'site-add', 'downloads'].includes(data.mode) ? data.mode : 'settings';
   panelTitle.textContent = {
     settings: '设置 · 全局快捷键',
     import: '导入浏览器登录态',
     'site-config': '站点配置',
-    'site-add': '添加站点'
+    'site-add': '添加站点',
+    downloads: '下载管理'
   }[mode];
   settingsSection.classList.toggle('hidden', mode !== 'settings');
   importSection.classList.toggle('hidden', mode !== 'import');
   siteConfigSection.classList.toggle('hidden', mode !== 'site-config');
   siteAddSection.classList.toggle('hidden', mode !== 'site-add');
+  downloadsSection.classList.toggle('hidden', mode !== 'downloads');
   document.querySelector('.card').scrollTop = 0;
   hotkeyStatus.textContent = '';
   importStatus.textContent = '';
@@ -208,6 +211,7 @@ window.chatbox.onPanelShow(async (data) => {
     setThemeUi(settings.theme || 'dark');
     applyTheme(settings.theme);
     setWebThemeUi(settings.webTheme || 'system');
+    document.getElementById('drag-strip').checked = Boolean(settings.webDragStrip);
     document.getElementById('home-url').value = settings.homeUrl || '';
     document.getElementById('version-text').textContent = `v${settings.version}`;
   });
@@ -216,6 +220,7 @@ window.chatbox.onPanelShow(async (data) => {
     document.getElementById('user-data-path').textContent = about.userDataPath;
   });
   window.chatbox.syncStatus().then(renderSyncStatus);
+  window.chatbox.downloadsList().then(renderDownloads);
   window.chatbox.extensionPath().then((extPath) => {
     document.getElementById('ext-path').textContent = extPath;
   });
@@ -245,6 +250,76 @@ function setWebThemeUi(mode) {
     document.getElementById(`web-theme-${value}`).classList.toggle('active', (mode || 'system') === value);
   }
 }
+
+document.getElementById('drag-strip').addEventListener('change', async (event) => {
+  await window.chatbox.setDragStrip(event.target.checked);
+});
+
+function formatBytes(bytes) {
+  if (!bytes || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit += 1; }
+  return `${value.toFixed(value >= 100 || unit === 0 ? 0 : 1)} ${units[unit]}`;
+}
+
+function downloadStateText(item) {
+  if (item.state === 'completed') return '已完成';
+  if (item.state === 'cancelled') return '已取消';
+  if (item.state === 'interrupted') return '已中断';
+  const percent = item.total > 0 ? Math.round((item.received / item.total) * 100) : 0;
+  return item.total > 0 ? `${percent}% · ${formatBytes(item.received)} / ${formatBytes(item.total)}` : formatBytes(item.received);
+}
+
+function renderDownloads(list) {
+  const holder = document.getElementById('downloads-list');
+  const empty = document.getElementById('downloads-empty');
+  holder.innerHTML = '';
+  empty.classList.toggle('hidden', list.length > 0);
+  for (const item of list) {
+    const row = document.createElement('div');
+    row.className = 'download-item';
+    const percent = item.total > 0 ? Math.round((item.received / item.total) * 100) : 0;
+    const progressBar = item.state === 'progressing'
+      ? `<div class="download-progress"><div class="download-progress-fill" style="width:${percent}%"></div></div>`
+      : '';
+    const actions = [];
+    if (item.state === 'progressing') {
+      actions.push(`<button class="btn ghost dl-pause" data-id="${item.id}">暂停</button>`);
+      actions.push(`<button class="btn ghost dl-cancel" data-id="${item.id}">取消</button>`);
+    } else if (item.state === 'interrupted') {
+      actions.push(`<button class="btn ghost dl-resume" data-id="${item.id}">继续</button>`);
+    } else if (item.state === 'completed') {
+      actions.push(`<button class="btn ghost dl-open" data-id="${item.id}">打开</button>`);
+      actions.push(`<button class="btn ghost dl-folder" data-id="${item.id}">文件夹</button>`);
+    }
+    actions.push(`<button class="btn ghost dl-remove" data-id="${item.id}">移除</button>`);
+    row.innerHTML = `
+      <div class="download-info">
+        <span class="download-name" title="${item.savePath}">${item.filename}</span>
+        <span class="download-state">${downloadStateText(item)}</span>
+        ${progressBar}
+      </div>
+      <div class="download-actions">${actions.join('')}</div>`;
+    holder.appendChild(row);
+  }
+}
+
+document.getElementById('downloads-list').addEventListener('click', async (event) => {
+  const button = event.target.closest('button[data-id]');
+  if (!button) return;
+  const id = Number(button.dataset.id);
+  if (button.classList.contains('dl-pause')) await window.chatbox.downloadsPause(id);
+  else if (button.classList.contains('dl-resume')) await window.chatbox.downloadsResume(id);
+  else if (button.classList.contains('dl-cancel')) await window.chatbox.downloadsCancel(id);
+  else if (button.classList.contains('dl-open')) await window.chatbox.downloadsOpen(id);
+  else if (button.classList.contains('dl-folder')) await window.chatbox.downloadsFolder(id);
+  else if (button.classList.contains('dl-remove')) await window.chatbox.downloadsRemove(id);
+  renderDownloads(await window.chatbox.downloadsList());
+});
+
+window.chatbox.onDownloadsUpdate(({ downloads }) => renderDownloads(downloads));
 
 for (const mode of ['system', 'dark', 'light']) {
   document.getElementById(`web-theme-${mode}`).addEventListener('click', async () => {

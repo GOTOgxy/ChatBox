@@ -65,6 +65,10 @@
           <span class="hotkey-label">开机自启</span>
           <label class="check-row"><input id="auto-launch" type="checkbox" /> 开机时静默启动到托盘</label>
         </div>
+        <div class="setting-row">
+          <span class="hotkey-label">网页拖动</span>
+          <label class="check-row"><input id="drag-strip" type="checkbox" /> 长按网页顶部细条拖动窗口</label>
+        </div>
       </div>
 
       <div class="tab-pane" data-pane="network">
@@ -172,6 +176,12 @@
           <button id="update-browser" class="btn ghost">在浏览器中下载</button>
         </div>
       </div>
+    </section>
+
+    <section id="downloads-section" class="hidden">
+      <p class="note">网页内触发的下载会保存在系统「下载」文件夹。点击条目可打开文件。</p>
+      <div id="downloads-list"></div>
+      <p id="downloads-empty" class="note">暂无下载任务。</p>
     </section>
 
     <section id="site-config-section" class="hidden">

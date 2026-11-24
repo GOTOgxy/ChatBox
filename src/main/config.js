@@ -7,6 +7,7 @@ const PROFILE_DEFAULTS = {
   titlebarMode: 'floating',
   theme: 'dark',
   webTheme: 'system',
+  webDragStrip: false,
   accentColor: '#ff5fa2',
   homeUrl: '',
   proxyMode: 'system',

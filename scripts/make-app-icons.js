@@ -104,30 +104,32 @@ function segmentDistance(px, py, ax, ay, bx, by) {
   return Math.hypot(px - (ax + abx * t), py - (ay + aby * t));
 }
 
-function chevronDistance(u, v, tipX, cy, arm, slope) {
-  const upper = segmentDistance(u, v, tipX - arm, cy - arm * slope, tipX, cy);
-  const lower = segmentDistance(u, v, tipX - arm, cy + arm * slope, tipX, cy);
-  return Math.min(upper, lower);
-}
-
-function terminalGlyph(u, v, scale) {
+function boxGlyph(u, v, scale) {
   const cx = 0.5;
-  const cy = 0.47;
-  const arm = 0.20 * scale;
-  const slope = 1.15;
-  const stroke = 0.052 * scale;
-  const chevronTipX = cx + 0.02 * scale;
-  const dist = chevronDistance(u, v, chevronTipX, cy, arm, slope);
-  if (dist <= stroke) {
-    const t = (u + v) / 2;
-    return gradientColor(t);
+  const cy = 0.5;
+  const w = 0.30 * scale;
+  const h = 0.17 * scale;
+  const d = 0.26 * scale;
+  const stroke = 0.048 * scale;
+  const T = [cx, cy - d / 2 - h];
+  const R = [cx + w, cy - d / 2];
+  const F = [cx, cy - d / 2 + h];
+  const L = [cx - w, cy - d / 2];
+  const B = [cx, cy + d / 2 + h];
+  const BR = [cx + w, cy + d / 2];
+  const BL = [cx - w, cy + d / 2];
+  const edges = [
+    [T, R], [R, F], [F, L], [L, T],
+    [F, B], [R, BR], [L, BL],
+    [BR, B], [BL, B]
+  ];
+  let minDist = Infinity;
+  for (const [a, b] of edges) {
+    minDist = Math.min(minDist, segmentDistance(u, v, a[0], a[1], b[0], b[1]));
   }
-  const cursorY = cy + arm * slope + 0.015;
-  const cursorX = cx + 0.13 * scale;
-  const cursorW = 0.16 * scale;
-  const cursorH = 0.05 * scale;
-  if (Math.abs(u - (cursorX + cursorW / 2)) <= cursorW / 2 && Math.abs(v - cursorY) <= cursorH / 2) {
-    return gradientColor(0.9);
+  if (minDist <= stroke) {
+    const t = Math.max(0, Math.min(1, (v - (cy - d / 2 - h)) / (d + 2 * h)));
+    return gradientColor(t);
   }
   return null;
 }
@@ -135,14 +137,14 @@ function terminalGlyph(u, v, scale) {
 function appIconPixel(x, y, size) {
   const tile = darkTilePixel(x, y, size, 0.03, 0.22);
   if (tile[3] === 0) return tile;
-  const glyph = terminalGlyph(x / size, y / size, 1);
+  const glyph = boxGlyph(x / size, y / size, 1);
   return glyph ? [...glyph, 255] : tile;
 }
 
 function trayIconPixel(x, y, size) {
   const tile = darkTilePixel(x, y, size, 0.06, 0.24);
   if (tile[3] === 0) return tile;
-  const glyph = terminalGlyph(x / size, y / size, 1.12);
+  const glyph = boxGlyph(x / size, y / size, 1.12);
   return glyph ? [...glyph, 255] : tile;
 }
 
