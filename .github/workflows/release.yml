@@ -24,9 +24,9 @@ jobs:
             kind: mac
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -38,7 +38,7 @@ jobs:
         if: matrix.kind == 'win'
         shell: pwsh
         run: |
-          npm run dist:win
+          npx electron-builder --win nsis --publish never
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
           $version = node -p "require('./package.json').version"
@@ -47,7 +47,7 @@ jobs:
 
       - name: Build macOS DMG (arm64)
         if: matrix.kind == 'mac'
-        run: npm run dist:mac
+        run: npx electron-builder --mac dmg --publish never
 
       - uses: actions/upload-artifact@v4
         with:
@@ -61,7 +61,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/download-artifact@v4
         with:
