@@ -143,9 +143,9 @@ async function downloadAndInstall(info, { relaunchHidden }) {
   try {
     const cleanEnv = { ...process.env };
     delete cleanEnv.ELECTRON_RUN_AS_NODE;
-    const child = spawn(dest, args, { detached: true, stdio: 'ignore', env: cleanEnv });
+    const child = spawn('explorer.exe', [`"${dest}" ${args.join(' ')}`], { stdio: 'ignore', env: cleanEnv });
     child.unref();
-    updateLog(`installer spawned: ${dest} ${args.join(' ')}`);
+    updateLog(`installer spawned via explorer: ${dest} ${args.join(' ')}`);
   } catch (error) {
     updateLog(`installer spawn failed: ${error.message || error}`);
     shell.openExternal(info.pageUrl || RELEASES_PAGE);
