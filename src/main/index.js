@@ -197,6 +197,41 @@ function attachProxyAuth() {
   }
 }
 
+function chromeClientHints(ua) {
+  const match = /Chrome\/([\d.]+)/.exec(ua || '');
+  if (!match) return null;
+  const major = match[1].split('.')[0];
+  const full = /^\d+\.0\.0\.0$/.test(match[1]) ? (process.versions.chrome || match[1]) : match[1];
+  const platform = process.platform === 'win32' ? 'Windows' : process.platform === 'darwin' ? 'macOS' : 'Linux';
+  return {
+    'Sec-CH-UA': `"Google Chrome";v="${major}", "Chromium";v="${major}", "Not_A Brand";v="99"`,
+    'Sec-CH-UA-Full-Version-List': `"Google Chrome";v="${full}", "Chromium";v="${full}", "Not_A Brand";v="99.0.0.0"`,
+    'Sec-CH-UA-Full-Version': `"${full}"`,
+    'Sec-CH-UA-Mobile': '?0',
+    'Sec-CH-UA-Platform': `"${platform}"`,
+    'Sec-CH-UA-Arch': `"${process.arch === 'arm64' ? 'arm' : 'x86'}"`,
+    'Sec-CH-UA-Bitness': '"64"',
+    'Sec-CH-UA-Model': '""'
+  };
+}
+
+function attachClientHints(ses) {
+  if (ses.__chatboxClientHints) return;
+  ses.__chatboxClientHints = true;
+  ses.webRequest.onBeforeSendHeaders({ urls: ['*://*/*'] }, (details, callback) => {
+    const hints = chromeClientHints(config.userAgent || chromeUserAgent());
+    if (!hints) return callback({});
+    const headers = { ...details.requestHeaders };
+    for (const [name, value] of Object.entries(hints)) {
+      for (const key of Object.keys(headers)) {
+        if (key.toLowerCase() === name.toLowerCase()) delete headers[key];
+      }
+      headers[name] = value;
+    }
+    callback({ requestHeaders: headers });
+  });
+}
+
 const DRAG_STRIP_ID = '__chatbox_drag_strip__';
 
 function dragStripInjectCode() {
@@ -224,6 +259,7 @@ function applyDragStripToAll() {
 function createSiteView(site) {
   const partition = siteSession(site);
   partition.setUserAgent(chromeUserAgent());
+  attachClientHints(partition);
   if (config.proxyMode === 'custom' && config.proxyRules) {
     partition.setProxy({ mode: 'fixed_servers', proxyRules: effectiveProxyRules() }).catch(() => {});
   } else if (config.proxyMode === 'direct') {
