@@ -9,7 +9,7 @@ function render() {
     card.className = 'card' + (index === selected ? ' selected' : '');
     card.innerHTML = `
       <span class="num">${index + 1}</span>
-      <div class="icon" style="background:${site.icon ? '#24262c' : site.color}">${site.icon ? `<img src="${site.icon}" alt="" style="width:26px;height:26px;object-fit:contain" />` : site.letter}</div>
+      <div class="icon" style="background:${site.color}">${site.icon ? `<img src="${site.icon}" alt="" style="width:26px;height:26px;object-fit:contain" />` : site.letter}</div>
       <span class="name">${site.name}</span>`;
     card.addEventListener('click', () => window.chatbox.pick(site.id));
     card.addEventListener('mousemove', () => {

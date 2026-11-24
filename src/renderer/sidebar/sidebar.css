@@ -145,7 +145,7 @@ body::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 2px; }
 }
 
 .site-btn.has-icon {
-  background: #ffffff;
+  border: 1px solid var(--card-border);
 }
 
 .site-btn.dragging { opacity: 0.3; }

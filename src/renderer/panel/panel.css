@@ -338,7 +338,8 @@ html, body {
   width: 36px;
   height: 36px;
   border-radius: 9px;
-  background: var(--bg-hover);
+  background: #ffffff;
+  border: 1px solid var(--card-border);
   display: flex;
   align-items: center;
   justify-content: center;

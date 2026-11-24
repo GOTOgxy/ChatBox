@@ -19,6 +19,7 @@ function render(list, activeId) {
     button.title = site.name;
     if (site.icon) {
       button.classList.add('has-icon');
+      button.style.background = site.color;
       button.innerHTML = `<img src="${site.icon}" alt="" /><span class="badge"></span>`;
     } else {
       button.style.background = site.color;
@@ -81,6 +82,7 @@ function renderHiddenList() {
     button.title = `${site.name}(已隐藏,点击恢复显示)`;
     if (site.icon) {
       button.classList.add('has-icon');
+      button.style.background = site.color;
       button.innerHTML = `<img src="${site.icon}" alt="" />`;
     } else {
       button.innerHTML = `<span>${site.letter}</span>`;
