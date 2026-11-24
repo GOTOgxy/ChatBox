@@ -147,6 +147,8 @@ async function applyProxy() {
     const ses = partition ? session.fromPartition(partition) : session.defaultSession;
     if (config.proxyMode === 'custom' && config.proxyRules) {
       await ses.setProxy({ mode: 'fixed_servers', proxyRules: effectiveProxyRules() });
+    } else if (config.proxyMode === 'direct') {
+      await ses.setProxy({ mode: 'direct' });
     } else {
       await ses.setProxy({ mode: 'system' });
     }
@@ -224,6 +226,8 @@ function createSiteView(site) {
   partition.setUserAgent(chromeUserAgent());
   if (config.proxyMode === 'custom' && config.proxyRules) {
     partition.setProxy({ mode: 'fixed_servers', proxyRules: effectiveProxyRules() }).catch(() => {});
+  } else if (config.proxyMode === 'direct') {
+    partition.setProxy({ mode: 'direct' }).catch(() => {});
   }
   attachProxyAuth();
   downloads.attach(partition);
@@ -1391,6 +1395,8 @@ function setupIpc() {
     const opts = options || {};
     if (opts.mode === 'system') {
       config.proxyMode = 'system';
+    } else if (opts.mode === 'direct') {
+      config.proxyMode = 'direct';
     } else {
       const host = String(opts.host || '').trim();
       const port = String(opts.port || '').trim();

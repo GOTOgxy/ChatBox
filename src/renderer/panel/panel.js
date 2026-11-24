@@ -564,8 +564,9 @@ function setProxyTypeUi(type) {
 }
 
 function setProxyUi(settings) {
-  const mode = settings.proxyMode || 'system';
-  document.getElementById('proxy-system').classList.toggle('active', mode !== 'custom');
+  const mode = ['custom', 'direct'].includes(settings.proxyMode) ? settings.proxyMode : 'system';
+  document.getElementById('proxy-system').classList.toggle('active', mode === 'system');
+  document.getElementById('proxy-direct').classList.toggle('active', mode === 'direct');
   document.getElementById('proxy-custom').classList.toggle('active', mode === 'custom');
   document.getElementById('proxy-custom-fields').classList.toggle('hidden', mode !== 'custom');
   let type = settings.proxyType;
@@ -595,6 +596,7 @@ document.getElementById('proxy-system').addEventListener('click', async () => {
   const statusEl = document.getElementById('proxy-status');
   if (result.ok) {
     document.getElementById('proxy-system').classList.add('active');
+    document.getElementById('proxy-direct').classList.remove('active');
     document.getElementById('proxy-custom').classList.remove('active');
     document.getElementById('proxy-custom-fields').classList.add('hidden');
     statusEl.className = 'status';
@@ -602,8 +604,22 @@ document.getElementById('proxy-system').addEventListener('click', async () => {
   }
 });
 
+document.getElementById('proxy-direct').addEventListener('click', async () => {
+  const result = await window.chatbox.setProxyStructured({ mode: 'direct' });
+  const statusEl = document.getElementById('proxy-status');
+  if (result.ok) {
+    document.getElementById('proxy-system').classList.remove('active');
+    document.getElementById('proxy-direct').classList.add('active');
+    document.getElementById('proxy-custom').classList.remove('active');
+    document.getElementById('proxy-custom-fields').classList.add('hidden');
+    statusEl.className = 'status';
+    statusEl.textContent = '已切换为直接连接,不使用任何代理。';
+  }
+});
+
 document.getElementById('proxy-custom').addEventListener('click', () => {
   document.getElementById('proxy-system').classList.remove('active');
+  document.getElementById('proxy-direct').classList.remove('active');
   document.getElementById('proxy-custom').classList.add('active');
   document.getElementById('proxy-custom-fields').classList.remove('hidden');
 });
