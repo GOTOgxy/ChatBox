@@ -146,7 +146,7 @@ async function applyProxy() {
   for (const partition of partitions) {
     const ses = partition ? session.fromPartition(partition) : session.defaultSession;
     if (config.proxyMode === 'custom' && config.proxyRules) {
-      await ses.setProxy({ mode: 'fixed_servers', proxyRules: config.proxyRules });
+      await ses.setProxy({ mode: 'fixed_servers', proxyRules: effectiveProxyRules() });
     } else {
       await ses.setProxy({ mode: 'system' });
     }
@@ -163,8 +163,15 @@ function proxyPassword() {
 }
 
 function buildProxyRules(type, host, port) {
-  const scheme = type === 'socks5' ? 'socks5' : 'http';
-  return `${scheme}=${host}:${port}`;
+  if (type === 'socks5') return `socks5=${host}:${port}`;
+  return `http=${host}:${port};https=${host}:${port}`;
+}
+
+function effectiveProxyRules() {
+  const rules = String(config.proxyRules || '').trim();
+  const match = /^http=([^:;]+):(\d+)$/i.exec(rules);
+  if (match) return `http=${match[1]}:${match[2]};https=${match[1]}:${match[2]}`;
+  return rules;
 }
 
 function parseProxyRules(rules) {
@@ -216,7 +223,7 @@ function createSiteView(site) {
   const partition = siteSession(site);
   partition.setUserAgent(chromeUserAgent());
   if (config.proxyMode === 'custom' && config.proxyRules) {
-    partition.setProxy({ mode: 'fixed_servers', proxyRules: config.proxyRules }).catch(() => {});
+    partition.setProxy({ mode: 'fixed_servers', proxyRules: effectiveProxyRules() }).catch(() => {});
   }
   attachProxyAuth();
   downloads.attach(partition);
