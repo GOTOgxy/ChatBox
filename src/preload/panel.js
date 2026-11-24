@@ -23,5 +23,15 @@ contextBridge.exposeInMainWorld('chatbox', {
   fetchIcon: (id) => ipcRenderer.invoke('sites:fetch-icon', id),
   setProxy: (mode, rules) => ipcRenderer.invoke('settings:set-proxy', mode, rules),
   setAccent: (color) => ipcRenderer.invoke('settings:set-accent', color),
-  setHome: (url) => ipcRenderer.invoke('settings:set-home', url)
+  setHome: (url) => ipcRenderer.invoke('settings:set-home', url),
+  setAutoLaunch: (enabled) => ipcRenderer.invoke('settings:set-autolaunch', enabled),
+  getAbout: () => ipcRenderer.invoke('settings:about'),
+  openUserData: () => ipcRenderer.invoke('settings:open-user-data'),
+  installUpdate: (info) => ipcRenderer.invoke('update:install', info),
+  openReleasesPage: () => ipcRenderer.invoke('update:open-page'),
+  onUpdateProgress: (callback) => ipcRenderer.on('update:progress', (_event, data) => callback(data)),
+  syncStatus: () => ipcRenderer.invoke('sync:status'),
+  syncConfigure: (options) => ipcRenderer.invoke('sync:configure', options),
+  syncNow: () => ipcRenderer.invoke('sync:now'),
+  onSyncStatus: (callback) => ipcRenderer.on('sync:status', (_event, data) => callback(data))
 });

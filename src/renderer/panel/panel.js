@@ -208,6 +208,11 @@ window.chatbox.onPanelShow(async (data) => {
     document.getElementById('home-url').value = settings.homeUrl || '';
     document.getElementById('version-text').textContent = `v${settings.version}`;
   });
+  window.chatbox.getAbout().then((about) => {
+    document.getElementById('auto-launch').checked = Boolean(about.autoLaunch);
+    document.getElementById('user-data-path').textContent = about.userDataPath;
+  });
+  window.chatbox.syncStatus().then(renderSyncStatus);
   window.chatbox.extensionPath().then((extPath) => {
     document.getElementById('ext-path').textContent = extPath;
   });
@@ -424,25 +429,115 @@ for (const [buttonId, mode] of [['mode-floating', 'floating'], ['mode-docked', '
   });
 }
 
+let updateInfo = null;
+
 async function runUpdateCheck() {
   const updateStatus = document.getElementById('update-status');
+  const actions = document.getElementById('update-actions');
   updateStatus.className = 'status';
   updateStatus.textContent = '检查中…';
+  actions.classList.add('hidden');
   const result = await window.chatbox.checkUpdate();
   if (!result.ok) {
     updateStatus.className = 'status error';
     updateStatus.textContent = `检查失败: ${result.error}`;
+    actions.classList.remove('hidden');
+    document.getElementById('update-install').classList.add('hidden');
+    return;
+  }
+  if (result.state === 'available') {
+    updateInfo = result;
+    updateStatus.textContent = `发现新版本 v${result.latest}(当前 v${result.current}),点「立即更新」后台下载并自动安装重启。`;
+    document.getElementById('update-install').classList.remove('hidden');
+    actions.classList.remove('hidden');
   } else if (result.state === 'no-release') {
-    updateStatus.textContent = '尚未配置发布仓库,暂无可用更新。';
-  } else if (result.latest && result.latest !== result.current) {
-    updateStatus.textContent = `发现新版本 v${result.latest}(当前 v${result.current})。`;
+    updateStatus.textContent = '暂无可用更新。';
   } else {
     updateStatus.textContent = `已是最新版本 v${result.current}。`;
   }
 }
 
+document.getElementById('update-install').addEventListener('click', async () => {
+  if (!updateInfo) return;
+  const updateStatus = document.getElementById('update-status');
+  updateStatus.className = 'status';
+  updateStatus.textContent = '下载中…';
+  const result = await window.chatbox.installUpdate(updateInfo);
+  if (!result.ok) {
+    updateStatus.className = 'status error';
+    updateStatus.textContent = `更新失败: ${result.error}。可点「在浏览器中下载」手动安装。`;
+  } else if (result.state === 'installer-launched') {
+    updateStatus.textContent = '安装中,应用即将自动重启…';
+  }
+});
+
+document.getElementById('update-browser').addEventListener('click', () => window.chatbox.openReleasesPage());
+
+window.chatbox.onUpdateProgress((info) => {
+  const updateStatus = document.getElementById('update-status');
+  if (info.phase === 'download') updateStatus.textContent = `下载中 ${info.percent}%…`;
+  else if (info.phase === 'installing') updateStatus.textContent = '校验完成,启动安装器…';
+});
+
 document.getElementById('check-update').addEventListener('click', runUpdateCheck);
 window.chatbox.onCheckUpdate(runUpdateCheck);
+
+document.getElementById('auto-launch').addEventListener('change', async (event) => {
+  await window.chatbox.setAutoLaunch(event.target.checked);
+});
+
+document.getElementById('open-user-data').addEventListener('click', () => window.chatbox.openUserData());
+
+function renderSyncStatus(status) {
+  document.getElementById('sync-enabled').checked = Boolean(status.enabled);
+  document.getElementById('sync-server').value = status.serverUrl || '';
+  document.getElementById('sync-user').value = status.username || '';
+  document.getElementById('sync-dir').value = status.remoteDir || '/ChatBox/';
+  const statusEl = document.getElementById('sync-status');
+  if (status.lastError) {
+    statusEl.className = 'status error';
+    statusEl.textContent = `同步暂停: ${status.lastError}`;
+  } else if (status.lastSyncAt) {
+    statusEl.className = 'status';
+    statusEl.textContent = `上次同步: ${new Date(status.lastSyncAt).toLocaleString()}`;
+  } else {
+    statusEl.className = 'status';
+    statusEl.textContent = status.enabled ? '已启用,尚未同步。' : '未启用。凭据仅存本机,登录态永不上传。';
+  }
+}
+
+document.getElementById('sync-save').addEventListener('click', async () => {
+  const statusEl = document.getElementById('sync-status');
+  statusEl.className = 'status';
+  statusEl.textContent = '保存并连接中…';
+  const result = await window.chatbox.syncConfigure({
+    enabled: document.getElementById('sync-enabled').checked,
+    serverUrl: document.getElementById('sync-server').value,
+    username: document.getElementById('sync-user').value,
+    password: document.getElementById('sync-pass').value,
+    remoteDir: document.getElementById('sync-dir').value
+  });
+  document.getElementById('sync-pass').value = '';
+  renderSyncStatus(result.status);
+  if (!result.ok) {
+    statusEl.className = 'status error';
+    statusEl.textContent = `连接失败: ${result.error}(配置已保存,可稍后重试)`;
+  }
+});
+
+document.getElementById('sync-now').addEventListener('click', async () => {
+  const statusEl = document.getElementById('sync-status');
+  statusEl.className = 'status';
+  statusEl.textContent = '同步中…';
+  const result = await window.chatbox.syncNow();
+  renderSyncStatus(result.status);
+  if (result.ok) {
+    statusEl.className = 'status';
+    statusEl.textContent = '同步完成。';
+  }
+});
+
+window.chatbox.onSyncStatus(renderSyncStatus);
 
 document.getElementById('panel-close').addEventListener('click', () => window.chatbox.closePanel());
 document.addEventListener('keydown', (event) => {

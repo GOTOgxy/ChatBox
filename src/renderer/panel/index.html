@@ -60,11 +60,49 @@
       </div>
       <div id="site-hotkeys"></div>
       <p id="hotkey-status" class="status"></p>
+      <div class="setting-row">
+        <span class="hotkey-label">开机自启</span>
+        <label class="check-row"><input id="auto-launch" type="checkbox" /> 开机时静默启动到托盘</label>
+      </div>
+      <div class="section-divider">云同步(WebDAV)</div>
+      <div class="setting-row">
+        <span class="hotkey-label">启用同步</span>
+        <label class="check-row"><input id="sync-enabled" type="checkbox" /> 快捷键/站点名册跟随网盘漫游(登录态永不上传)</label>
+      </div>
+      <div class="form-row">
+        <label class="form-label">服务器</label>
+        <input id="sync-server" class="form-input" placeholder="https://dav.jianguoyun.com/dav/" spellcheck="false" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">账号</label>
+        <input id="sync-user" class="form-input" spellcheck="false" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">应用密码</label>
+        <input id="sync-pass" class="form-input" type="password" placeholder="留空则不修改" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">远端目录</label>
+        <input id="sync-dir" class="form-input" placeholder="/ChatBox/" spellcheck="false" />
+        <button id="sync-save" class="btn">保存</button>
+        <button id="sync-now" class="btn ghost">立即同步</button>
+      </div>
+      <p id="sync-status" class="status"></p>
+      <div class="section-divider">关于</div>
+      <div class="setting-row">
+        <span class="hotkey-label">数据目录</span>
+        <button id="open-user-data" class="btn ghost">打开</button>
+      </div>
+      <p id="user-data-path" class="note path-note"></p>
       <div class="setting-row update-row">
         <span class="hotkey-label">版本 <span id="version-text" class="version"></span></span>
         <button id="check-update" class="btn">检查更新</button>
       </div>
       <p id="update-status" class="status"></p>
+      <div class="actions hidden" id="update-actions">
+        <button id="update-install" class="btn primary">立即更新</button>
+        <button id="update-browser" class="btn ghost">在浏览器中下载</button>
+      </div>
     </section>
 
     <section id="site-config-section" class="hidden">

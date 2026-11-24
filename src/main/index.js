@@ -18,8 +18,12 @@ const configStore = require('./config');
 const sitesStore = require('./sites-store');
 const nativeHost = require('./native-host');
 const mechanisms = require('./mechanisms');
+const sync = require('./sync');
+const updater = require('./updater');
 require('./mechanisms/icon-fetch');
 require('./mechanisms/login-import');
+
+const startHidden = process.argv.includes('--hidden');
 
 const SIDEBAR_WIDTH = 64;
 const TITLEBAR_HEIGHT = 42;
@@ -78,6 +82,7 @@ function enabledSites() {
 
 function persistSites() {
   sitesStore.save(sites);
+  sync.schedulePush();
 }
 
 function broadcastSites() {
@@ -315,9 +320,12 @@ function defaultBrowserScheme() {
 }
 
 function createMainWindow() {
+  const savedBounds = config.windowBounds || {};
   mainWindow = new BaseWindow({
-    width: 1200,
-    height: 800,
+    width: savedBounds.width || 1200,
+    height: savedBounds.height || 800,
+    x: savedBounds.x,
+    y: savedBounds.y,
     minWidth: 640,
     minHeight: 480,
     title: 'ChatBox',
@@ -349,13 +357,27 @@ function createMainWindow() {
   }
 
   attachTitlebarEvents();
+  const persistBounds = () => {
+    if (!mainWindow || mainWindow.isDestroyed() || mainWindow.isMaximized() || mainWindow.isMinimized()) return;
+    config.windowBounds = mainWindow.getBounds();
+    configStore.save(config);
+  };
+  let boundsTimer = null;
+  const scheduleBoundsPersist = () => {
+    clearTimeout(boundsTimer);
+    boundsTimer = setTimeout(persistBounds, 500);
+  };
+  mainWindow.on('resize', scheduleBoundsPersist);
+  mainWindow.on('move', scheduleBoundsPersist);
   mainWindow.on('close', (event) => {
     if (!quitting) {
       event.preventDefault();
       mainWindow.hide();
     }
   });
-  sidebarView.webContents.once('did-finish-load', () => mainWindow.show());
+  sidebarView.webContents.once('did-finish-load', () => {
+    if (!startHidden) mainWindow.show();
+  });
   sidebarView.webContents.once('did-finish-load', () => {
     sendToSidebar('init', {
       sites,
@@ -653,6 +675,7 @@ function hideTitlebar() {
 function setTitlebarMode(mode) {
   config.titlebarMode = mode === 'docked' ? 'docked' : 'floating';
   configStore.save(config);
+  sync.schedulePush();
   if (config.titlebarMode === 'docked') dockedTitlebarVisible = true;
   ensureTitlebarWindow();
   layoutViews();
@@ -711,6 +734,7 @@ function setHotkey(kind, id, accelerator) {
   configStore.save(config);
   rebuildTrayMenu();
   sendToSidebar('hotkeys:update', currentHotkeys());
+  sync.schedulePush();
   return { ok: true, hotkeys: currentHotkeys(), conflicts: failed };
 }
 
@@ -884,31 +908,74 @@ function setupIpc() {
     }
     config.homeUrl = value;
     configStore.save(config);
+    sync.schedulePush();
     return { ok: true, homeUrl: config.homeUrl };
   });
   ipcMain.handle('settings:set-accent', (_event, color) => {
     if (typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color)) {
       config.accentColor = color;
       configStore.save(config);
+      sync.schedulePush();
       sendToSidebar('accent:update', { accentColor: color });
     }
     return { ok: true, accentColor: config.accentColor };
   });
   ipcMain.handle('update:check', async () => {
     try {
-      const response = await fetch('https://api.github.com/repos/GOTOgxy/ChatBox/releases/latest', {
-        headers: { 'User-Agent': 'ChatBox-Update-Check' }
-      });
-      if (response.status === 404) {
-        return { ok: true, state: 'no-release', current: app.getVersion() };
-      }
-      if (!response.ok) return { ok: false, error: `HTTP ${response.status}` };
-      const release = await response.json();
-      const latest = String(release.tag_name || '').replace(/^v/, '');
-      return { ok: true, state: 'checked', current: app.getVersion(), latest, url: release.html_url };
+      return await updater.check();
     } catch (error) {
       return { ok: false, error: String(error) };
     }
+  });
+  ipcMain.handle('update:install', async (_event, info) => {
+    try {
+      const result = await updater.downloadAndInstall(info, { relaunchHidden: startHidden || !mainWindow.isVisible() });
+      if (result.ok && result.state === 'installer-launched') {
+        quitting = true;
+        setTimeout(() => app.quit(), 300);
+      }
+      return result;
+    } catch (error) {
+      return { ok: false, error: String(error) };
+    }
+  });
+  ipcMain.handle('update:open-page', () => {
+    updater.openReleasesPage();
+    return { ok: true };
+  });
+  ipcMain.handle('settings:set-autolaunch', (_event, enabled) => {
+    config.autoLaunch = Boolean(enabled);
+    configStore.save(config);
+    try {
+      app.setLoginItemSettings({
+        openAtLogin: config.autoLaunch,
+        args: config.autoLaunch ? ['--hidden'] : []
+      });
+    } catch {
+    }
+    sync.schedulePush();
+    return { ok: true, autoLaunch: config.autoLaunch };
+  });
+  ipcMain.handle('settings:about', () => ({
+    version: app.getVersion(),
+    userDataPath: app.getPath('userData'),
+    platform: process.platform,
+    autoLaunch: config.autoLaunch
+  }));
+  ipcMain.handle('settings:open-user-data', () => {
+    shell.openPath(app.getPath('userData'));
+    return { ok: true };
+  });
+  ipcMain.handle('sync:status', () => sync.status());
+  ipcMain.handle('sync:configure', async (_event, options) => {
+    const result = await sync.configure(options || {});
+    return { ...result, status: sync.status() };
+  });
+  ipcMain.handle('sync:now', async () => {
+    const pushed = await sync.push();
+    if (!pushed.ok) return { ...pushed, status: sync.status() };
+    const pulled = await sync.pull();
+    return { ...pulled, status: sync.status() };
   });
   ipcMain.handle('hotkeys:set', (_event, { kind, id, accelerator }) =>
     setHotkey(kind, id, accelerator)
@@ -1001,6 +1068,7 @@ function setupIpc() {
     config.proxyMode = mode === 'custom' ? 'custom' : 'system';
     config.proxyRules = String(rules || '').trim();
     configStore.save(config);
+    sync.schedulePush();
     await applyProxy();
     return { ok: true, proxyMode: config.proxyMode, proxyRules: config.proxyRules };
   });
@@ -1173,7 +1241,14 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
-  app.on('second-instance', showMainWindow);
+  app.on('second-instance', (_event, argv) => {
+    if (argv.includes('--quit-for-update')) {
+      quitting = true;
+      app.quit();
+      return;
+    }
+    showMainWindow();
+  });
   app.whenReady().then(() => {
     config = configStore.load();
     sites = sitesStore.load();
@@ -1182,6 +1257,47 @@ if (!gotLock) {
       nativeHost.register();
     } catch {
     }
+    try {
+      app.setLoginItemSettings({ openAtLogin: Boolean(config.autoLaunch), args: config.autoLaunch ? ['--hidden'] : [] });
+    } catch {
+    }
+    updater.init({
+      progress: (info) => {
+        if (panelView && !panelView.webContents.isDestroyed()) {
+          panelView.webContents.send('update:progress', info);
+        }
+      }
+    });
+    sync.init({
+      getState: () => config,
+      persist: (cfg) => {
+        config = cfg;
+        configStore.save(config);
+      },
+      status: (syncState) => {
+        if (panelView && !panelView.webContents.isDestroyed()) {
+          panelView.webContents.send('sync:status', syncState);
+        }
+      },
+      onRemoteProfile: (profile) => {
+        for (const key of configStore.PROFILE_KEYS) {
+          if (profile[key] !== undefined) config[key] = profile[key];
+        }
+        config.siteHotkeys = { ...(profile.siteHotkeys || {}) };
+        config.revision = profile.revision || config.revision;
+        configStore.save(config);
+        registerShortcuts();
+        layoutViews();
+        broadcastSites();
+        sendToSidebar('accent:update', { accentColor: config.accentColor });
+      },
+      onRemoteSites: (remoteSites) => {
+        sites = remoteSites.map((site) => sitesStore.ensureRootDomain(sitesStore.normalizeSite(site)));
+        persistSites();
+        registerShortcuts();
+        broadcastSites();
+      }
+    });
     setupIpc();
     createMainWindow();
     if (config.titlebarMode === 'docked') ensureTitlebarWindow();

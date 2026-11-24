@@ -275,6 +275,21 @@ html, body {
   height: 14px;
 }
 
+.section-divider {
+  margin: 14px 0 8px;
+  padding-top: 10px;
+  border-top: 1px solid #33353d;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8b8e98;
+  letter-spacing: 0.5px;
+}
+
+.path-note {
+  word-break: break-all;
+  margin-top: -4px;
+}
+
 .icon-picker {
   display: flex;
   align-items: center;
