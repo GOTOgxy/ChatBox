@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "ChatBox Cookie Bridge",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Send AI chat site cookies to the ChatBox desktop app",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA06AX32SIBfujWwXb3XOPWNb8J00Ah9mM3Ds7VHw5L4FfD4CfGKXSl62wP94ML32uJdE0uni9v1nHZHEG3T4fDWrfobfqvH9iDyiBjUo1H8tGYQqmRjxezEGYAwwMFO2wE1KQF3g8+GtXhZ+JZdpUNlO8PZLG98CQAzz0nydSgdhFi9h9ZUGWTm2fo4w5h0gePPc5prGPqj+sIslozj3djCpWZvLt5vEJqwEYp2zrqjGV6Vo7prpamUx8vXqdhZqHOByNu4bvR4efj8dtrWexNJx3RLA8DEYHRRxwSPDgRCOKFEBGew0iio0YlUjFm6wnvb1sYg/LsIKQLweZ+ntSwQIDAQAB",
   "permissions": ["cookies", "nativeMessaging", "scripting", "tabs"],
   "host_permissions": [
+    "*://*/*",
     "https://*.chatgpt.com/*",
     "https://*.openai.com/*",
     "https://*.auth0.com/*",

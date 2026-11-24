@@ -1,39 +1,22 @@
-const DOMAINS = [
-  'chatgpt.com',
-  'openai.com',
-  'auth0.com',
-  'google.com',
-  'tongyi.com',
-  'qianwen.com',
-  'aliyun.com',
-  'taobao.com',
-  'mmstat.com',
-  'kimi.com',
-  'moonshot.cn',
-  'deepseek.com'
-];
-
 const HOST_NAME = 'com.chatai.cookie_import';
 let storageStatus = {};
 
 async function collectAndSend() {
-  const all = [];
-  const perDomain = {};
-  for (const domain of DOMAINS) {
-    const cookies = await chrome.cookies.getAll({ domain });
-    perDomain[domain] = cookies.length;
-    all.push(...cookies);
-  }
-  let totalInStore = -1;
-  let storeHosts = [];
+  // 采集全部 cookie(含自定义站点),应用侧按各站点域名过滤注入。
+  let everyCookie = [];
   try {
-    const everyCookie = await chrome.cookies.getAll({});
-    totalInStore = everyCookie.length;
-    storeHosts = Array.from(new Set(everyCookie.map((cookie) => cookie.domain.replace(/^\./, '')))).sort();
+    everyCookie = await chrome.cookies.getAll({});
   } catch {
   }
+  const perDomain = {};
+  for (const cookie of everyCookie) {
+    const host = cookie.domain.replace(/^\./, '');
+    perDomain[host] = (perDomain[host] || 0) + 1;
+  }
+  const totalInStore = everyCookie.length;
+  const storeHosts = Array.from(new Set(everyCookie.map((cookie) => cookie.domain.replace(/^\./, '')))).sort();
   const seen = new Set();
-  const unique = all.filter((cookie) => {
+  const unique = everyCookie.filter((cookie) => {
     const key = `${cookie.domain}|${cookie.path}|${cookie.name}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -124,11 +107,8 @@ async function collectStorage() {
     } catch {
       continue;
     }
-    const matched = DOMAINS.some((domain) => {
-      const host = new URL(tab.url).hostname;
-      return host === domain || host.endsWith(`.${domain}`);
-    });
-    if (!matched || result[origin]) continue;
+    // 采集所有已打开 http(s) 标签页的 localStorage(含自定义站点),应用侧按域名过滤。
+    if (result[origin]) continue;
     try {
       const data = await dumpStorageInTab(tab.id);
       if (Object.keys(data).length > 0) {

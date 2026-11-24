@@ -1138,6 +1138,7 @@ async function importCookies(skipGoogle) {
   } catch {
   }
   result.skipped = skipped;
+  result.names = Object.fromEntries(allSites.map((site) => [site.id, site.name || site.id]));
   return result;
 }
 
@@ -1496,6 +1497,7 @@ function setupIpc() {
   ipcMain.handle('sites:preview-icon', async (_event, url) => {
     return iconFetch.previewByUrl(String(url || ''), session.defaultSession);
   });
+  ipcMain.handle('sites:clear-all-login', clearAllLogin);
   ipcMain.handle('settings:set-proxy', async (_event, mode, rules) => {
     config.proxyMode = mode === 'custom' ? 'custom' : 'system';
     config.proxyRules = String(rules || '').trim();
@@ -1659,6 +1661,32 @@ async function confirmClearSiteData(id) {
   }
   const view = siteViews.get(id);
   if (view && !view.webContents.isDestroyed()) view.webContents.reload();
+}
+
+async function clearAllLogin() {
+  const targets = sites;
+  const result = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: '清除全部登录态',
+    message: `确定清除全部 ${targets.length} 个站点的本地登录态吗?`,
+    detail: '将清除所有站点在本应用内的 Cookie 与 localStorage(含导入的登录态),需重新登录或重新导入。快捷键、图标、站点配置与软件设置不受影响。',
+    buttons: ['清除', '取消'],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true
+  });
+  if (result.response !== 0) return { ok: false, canceled: true };
+  let cleared = 0;
+  for (const site of targets) {
+    try {
+      await session.fromPartition(`persist:${site.id}`).clearStorageData();
+      cleared += 1;
+    } catch {
+    }
+    const view = siteViews.get(site.id);
+    if (view && !view.webContents.isDestroyed()) view.webContents.reload();
+  }
+  return { ok: true, cleared };
 }
 
 async function confirmDeleteSite(id) {

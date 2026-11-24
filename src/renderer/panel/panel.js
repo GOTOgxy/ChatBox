@@ -886,17 +886,18 @@ document.getElementById('do-import').addEventListener('click', async () => {
   const skipGoogle = document.getElementById('import-skip-google').checked;
   const result = await window.chatbox.runImport(skipGoogle);
   if (result.ok) {
+    const nm = (id) => (result.names && result.names[id]) || id;
     const summary = Object.entries(result.imported)
-      .map(([id, count]) => `${id}: ${count}`)
+      .map(([id, count]) => `${nm(id)}: ${count}`)
       .join(', ');
     const skippedText = result.skipped && result.skipped.length > 0
       ? ` 已跳过: ${result.skipped.join(', ')}（建议应用内直登）`
       : '';
     const failureText = result.failures && Object.keys(result.failures).length > 0
-      ? ` 部分失败: ${Object.entries(result.failures).map(([id, names]) => `${id}[${names.join('; ')}]`).join(' | ')}`
+      ? ` 部分失败: ${Object.entries(result.failures).map(([id, names]) => `${nm(id)}[${names.join('; ')}]`).join(' | ')}`
       : '';
     const storageText = result.storage && Object.keys(result.storage).length > 0
-      ? ` localStorage: ${Object.entries(result.storage).map(([id, count]) => `${id}: ${count}`).join(', ')}`
+      ? ` localStorage: ${Object.entries(result.storage).map(([id, count]) => `${nm(id)}: ${count}`).join(', ')}`
       : '';
     const statusText = result.storageStatus && Object.keys(result.storageStatus).length > 0
       ? ` 采集状态: ${Object.entries(result.storageStatus).map(([origin, state]) => `${origin}=${state}`).join('; ')}`
@@ -909,6 +910,18 @@ document.getElementById('do-import').addEventListener('click', async () => {
   } else {
     importStatus.className = 'status error';
     importStatus.textContent = `导入失败: ${result.reason || result.error}`;
+  }
+});
+
+document.getElementById('clear-all-login').addEventListener('click', async () => {
+  const statusEl = document.getElementById('clear-login-status');
+  const result = await window.chatbox.clearAllLogin();
+  if (result.ok) {
+    statusEl.className = 'status';
+    statusEl.textContent = `已清除 ${result.cleared} 个站点的登录态。`;
+  } else if (!result.canceled) {
+    statusEl.className = 'status error';
+    statusEl.textContent = '清除失败。';
   }
 });
 
