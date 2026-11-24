@@ -8,6 +8,7 @@ const PROFILE_DEFAULTS = {
   theme: 'dark',
   webTheme: 'system',
   webDragStrip: false,
+  webDragStripHeight: 16,
   accentColor: '#ff5fa2',
   homeUrl: '',
   proxyMode: 'system',

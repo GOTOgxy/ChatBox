@@ -212,6 +212,10 @@ window.chatbox.onPanelShow(async (data) => {
     applyTheme(settings.theme);
     setWebThemeUi(settings.webTheme || 'system');
     document.getElementById('drag-strip').checked = Boolean(settings.webDragStrip);
+    const stripHeight = Number(settings.webDragStripHeight) || 16;
+    document.getElementById('drag-strip-height').value = stripHeight;
+    document.getElementById('drag-strip-height-value').textContent = `${stripHeight}px`;
+    document.getElementById('drag-strip-height-row').classList.toggle('hidden', !settings.webDragStrip);
     document.getElementById('home-url').value = settings.homeUrl || '';
     document.getElementById('version-text').textContent = `v${settings.version}`;
   });
@@ -253,6 +257,14 @@ function setWebThemeUi(mode) {
 
 document.getElementById('drag-strip').addEventListener('change', async (event) => {
   await window.chatbox.setDragStrip(event.target.checked);
+  document.getElementById('drag-strip-height-row').classList.toggle('hidden', !event.target.checked);
+});
+
+document.getElementById('drag-strip-height').addEventListener('input', (event) => {
+  document.getElementById('drag-strip-height-value').textContent = `${event.target.value}px`;
+});
+document.getElementById('drag-strip-height').addEventListener('change', async (event) => {
+  await window.chatbox.setDragStripHeight(Number(event.target.value));
 });
 
 function formatBytes(bytes) {

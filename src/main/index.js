@@ -177,13 +177,15 @@ function attachProxyAuth() {
 const DRAG_STRIP_ID = '__chatbox_drag_strip__';
 
 function dragStripInjectCode() {
+  const stripHeight = Math.max(4, Math.min(60, Number(config.webDragStripHeight) || 16));
   return `(() => {
     const existing = document.getElementById('${DRAG_STRIP_ID}');
     if (existing) existing.remove();
     if (!${config.webDragStrip ? 'true' : 'false'}) return;
+    if (!window.chatboxDrag) return;
     const strip = document.createElement('div');
     strip.id = '${DRAG_STRIP_ID}';
-    strip.style.cssText = 'position:fixed;top:0;left:0;right:0;height:6px;z-index:2147483647;cursor:grab;background:transparent;';
+    strip.style.cssText = 'position:fixed;top:0;left:0;right:0;height:${stripHeight}px;z-index:2147483647;cursor:grab;background:transparent;';
     let timer = null;
     let startX = 0;
     let startY = 0;
@@ -194,13 +196,14 @@ function dragStripInjectCode() {
     };
     strip.addEventListener('mousedown', (event) => {
       if (event.button !== 0) return;
+      event.preventDefault();
       startX = event.screenX;
       startY = event.screenY;
       timer = setTimeout(() => {
         dragging = true;
         strip.style.cursor = 'grabbing';
         window.chatboxDrag.stripStart(startX, startY);
-      }, 350);
+      }, 300);
     });
     strip.addEventListener('mousemove', (event) => {
       if (timer && Math.hypot(event.screenX - startX, event.screenY - startY) > 4) { clearTimeout(timer); timer = null; }
@@ -213,7 +216,7 @@ function dragStripInjectCode() {
 
 function applyDragStripToView(view) {
   if (!view || view.webContents.isDestroyed()) return;
-  view.webContents.executeJavaScript(dragStripInjectCode()).catch(() => {});
+  view.webContents.executeJavaScript(dragStripInjectCode(), true).catch(() => {});
 }
 
 function applyDragStripToAll() {
@@ -1016,6 +1019,13 @@ function setupIpc() {
     applyDragStripToAll();
     return { ok: true, webDragStrip: config.webDragStrip };
   });
+  ipcMain.handle('settings:set-drag-strip-height', (_event, height) => {
+    config.webDragStripHeight = Math.max(4, Math.min(60, Number(height) || 16));
+    configStore.save(config);
+    sync.schedulePush();
+    applyDragStripToAll();
+    return { ok: true, webDragStripHeight: config.webDragStripHeight };
+  });
   ipcMain.handle('downloads:list', () => downloads.list());
   ipcMain.handle('downloads:pause', (_event, id) => { downloads.pause(id); return { ok: true }; });
   ipcMain.handle('downloads:resume', (_event, id) => { downloads.resume(id); return { ok: true }; });
@@ -1096,7 +1106,8 @@ function setupIpc() {
     homeUrl: config.homeUrl || '',
     theme: config.theme || 'dark',
     webTheme: config.webTheme || 'system',
-    webDragStrip: Boolean(config.webDragStrip)
+    webDragStrip: Boolean(config.webDragStrip),
+    webDragStripHeight: Number(config.webDragStripHeight) || 16
   }));
   ipcMain.handle('settings:set-titlebar-mode', (_event, mode) => setTitlebarMode(mode));
   ipcMain.handle('settings:set-theme', (_event, theme) => {
@@ -1256,6 +1267,14 @@ function setupIpc() {
         click: () => {
           const view = siteViews.get(id);
           if (view) view.webContents.reload();
+        }
+      },
+      {
+        label: '刷新回到首页',
+        click: () => {
+          const wasActive = activeSiteId === id;
+          closeSiteView(id);
+          if (wasActive) activateSite(id);
         }
       },
       {
