@@ -1346,6 +1346,10 @@ function setupIpc() {
         label: '在默认浏览器打开',
         click: () => shell.openExternal(site.url)
       },
+      {
+        label: '清除数据…',
+        click: () => confirmClearSiteData(id)
+      },
       { type: 'separator' },
       {
         label: '配置…',
@@ -1524,6 +1528,28 @@ function setupIpc() {
     return { ok: true, icon: `data:${mime};base64,${buffer.toString('base64')}` };
   });
   ipcMain.handle('sites:delete', (_event, id) => confirmDeleteSite(id));
+}
+
+async function confirmClearSiteData(id) {
+  const site = siteById(id);
+  if (!site) return;
+  const result = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: '清除站点数据',
+    message: `确定清除「${site.name}」的本地数据吗?`,
+    detail: '将清除该站点在本应用内的 Cookie、缓存与登录态,需重新登录或重新导入。快捷键、图标等站点设置不受影响。',
+    buttons: ['清除', '取消'],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true
+  });
+  if (result.response !== 0) return;
+  try {
+    await session.fromPartition(`persist:${id}`).clearStorageData();
+  } catch {
+  }
+  const view = siteViews.get(id);
+  if (view && !view.webContents.isDestroyed()) view.webContents.reload();
 }
 
 async function confirmDeleteSite(id) {
