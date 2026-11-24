@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('chatbox', {
   closePanel: () => ipcRenderer.send('panel:close'),
   getHotkeys: () => ipcRenderer.invoke('hotkeys:get'),
   setHotkey: (kind, id, accelerator) => ipcRenderer.invoke('hotkeys:set', { kind, id, accelerator }),
+  clearHotkeys: () => ipcRenderer.invoke('hotkeys:clear-all'),
   registerHost: () => ipcRenderer.invoke('import:register-host'),
   openExtensionsPage: () => ipcRenderer.invoke('import:open-extensions-page'),
   extensionPath: () => ipcRenderer.invoke('import:extension-path'),

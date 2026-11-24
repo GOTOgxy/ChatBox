@@ -199,6 +199,14 @@ async function applyHotkey(kind, id, accelerator) {
   }
 }
 
+document.getElementById('hotkey-clear-all').addEventListener('click', async () => {
+  const result = await window.chatbox.clearHotkeys();
+  if (result.hotkeys) hotkeys = result.hotkeys;
+  fillHotkeyInputs();
+  hotkeyStatus.className = 'status';
+  hotkeyStatus.textContent = '已清空全部快捷键。';
+});
+
 window.chatbox.onPanelShow(async (data) => {
   sites = data.sites || [];
   hotkeys = data.hotkeys || { switcher: '', showApp: '', sites: {} };

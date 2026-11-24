@@ -26,10 +26,12 @@ npm install
 ```bash
 npm run pack:crx     # 先打包扩展(安装包会内置 crx 与扩展目录)
 npm run dist:win     # Windows: release/ChatBox-Setup-x.y.z.exe(NSIS,可选安装目录,默认用户级安装)
-npm run dist:mac     # macOS: release/ChatBox-x.y.z-{arm64,x64}.dmg(需在 macOS 上执行)
+npm run dist:mac     # macOS: release/ChatBox-x.y.z-arm64.dmg(需在 macOS 上执行;仅发 arm64,不做 Intel)
 ```
 
-国内网络需先设 `$env:ELECTRON_MIRROR='https://npmmirror.com/mirrors/electron/'` 与 `$env:ELECTRON_BUILDER_BINARIES_MIRROR='https://npmmirror.com/mirrors/electron-builder-binaries/'`。DMG 无法在 Windows/Linux 上交叉构建(apple 工具链限制),在 Mac 上克隆仓库执行 `npm install && npm run dist:mac` 即可;未配置签名证书时产物为未签名应用,macOS 首次打开需右键「打开」。
+国内网络需先设 `$env:ELECTRON_MIRROR='https://npmmirror.com/mirrors/electron/'` 与 `$env:ELECTRON_BUILDER_BINARIES_MIRROR='https://npmmirror.com/mirrors/electron-builder-binaries/'`。DMG 无法在 Windows/Linux 上交叉构建(apple 工具链限制),在 Mac 上克隆仓库执行 `npm install && npm run dist:mac` 即可。
+
+未配置签名证书时产物为 ad-hoc 签名应用:**从浏览器下载的 DMG 会带隔离标记,首次打开报「已损坏」**,安装后执行 `xattr -dr com.apple.quarantine /Applications/ChatBox.app` 即可正常打开(本地构建的 DMG 无此问题;应用内自动更新下载的安装包不受影响)。彻底解决需 Apple Developer 证书签名+公证。
 
 CRX 签名私钥 `assets/extension-private.pem` 不入库。没有私钥的开发者(如 Mac 协作开发)无需打包 crx:直接用「加载已解压的扩展程序」选择 `extension/` 目录,扩展 ID 由 `extension/key.txt` 固定,与正式版一致。`npm run pack:crx` 仅在持有私钥的发布机上执行。
 
@@ -37,7 +39,7 @@ CRX 签名私钥 `assets/extension-private.pem` 不入库。没有私钥的开�
 
 Windows 发布流程:先 `npm run dist:win` 生成 `release/win-unpacked`,再用 Inno Setup 编译 `installer/chatbox.iss` 得到 `release/ChatBox-Setup-x.y.z.exe`,最后执行 `npm run release -- --notes "更新说明"`。
 
-macOS 发布流程:在 Mac 上 `npm run dist:mac`(或只构建本机架构 `npx electron-builder --mac dmg --arm64`),再执行 `npm run release -- --notes "更新说明"`。
+macOS 发布流程:在 Mac 上 `npm run dist:mac`(仅 arm64),再执行 `npm run release -- --notes "更新说明"`。
 
 发布脚本会自动打包 crx、生成 checksums,并通过 gh 上传到 GitHub Release:**Release 不存在则创建,已存在则追加上传**(`--clobber`),并合并远端 checksums 保留另一端条目。因此两端发同一个版本时:一端先创建 Release,另一端拉取最新代码、构建后直接 `npm run release` 即追加到同一 Release,无需手动操作。每个 Release 必须包含 crx。
 

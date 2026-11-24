@@ -123,7 +123,7 @@
       </div>
 
       <div class="tab-pane" data-pane="hotkeys">
-        <p class="note">点击输入框后按下组合键即可录制;Backspace/Delete 清除,Esc 取消。需包含 Ctrl/Alt/Shift/Win 之一。</p>
+        <p class="note">点击输入框后按下组合键即可录制;Backspace/Delete 清除,Esc 取消。需包含修饰键(mac 为 Cmd/Ctrl,其他平台 Ctrl/Alt/Shift/Win)之一。</p>
         <div class="hotkey-row">
           <span class="hotkey-label">快捷切换面板</span>
           <input class="hotkey-input" data-kind="switcher" readonly />
@@ -134,6 +134,9 @@
         </div>
         <div class="section-divider">各站点直达</div>
         <div id="site-hotkeys"></div>
+        <div class="actions">
+          <button id="hotkey-clear-all" class="btn ghost">一键清空全部快捷键</button>
+        </div>
         <p id="hotkey-status" class="status"></p>
       </div>
 

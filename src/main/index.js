@@ -1269,6 +1269,17 @@ function setupIpc() {
   ipcMain.handle('hotkeys:set', (_event, { kind, id, accelerator }) =>
     setHotkey(kind, id, accelerator)
   );
+  ipcMain.handle('hotkeys:clear-all', () => {
+    config.switcherHotkey = '';
+    config.showAppHotkey = '';
+    for (const key of Object.keys(config.siteHotkeys)) config.siteHotkeys[key] = '';
+    registerShortcuts();
+    configStore.save(config);
+    rebuildTrayMenu();
+    sendToSidebar('hotkeys:update', currentHotkeys());
+    sync.schedulePush();
+    return { ok: true, hotkeys: currentHotkeys() };
+  });
   ipcMain.handle('import:run', importCookies);
   ipcMain.handle('mechanisms:list', () => mechanisms.list());
   ipcMain.handle('import:register-host', () => {

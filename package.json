@@ -1,7 +1,7 @@
 {
   "name": "chatbox",
   "productName": "ChatBox",
-  "version": "1.5.6",
+  "version": "1.5.7",
   "description": "Fast cross-platform hub for AI chat web apps",
   "main": "src/main/index.js",
   "author": "ChatBox",
@@ -75,8 +75,7 @@
         {
           "target": "dmg",
           "arch": [
-            "arm64",
-            "x64"
+            "arm64"
           ]
         }
       ],
