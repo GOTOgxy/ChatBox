@@ -125,9 +125,9 @@ function broadcastSites() {
 }
 
 function chromeUserAgent() {
-  if (config.userAgent) return config.userAgent;
-  const versions = process.versions;
-  const chromeMajor = (versions.chrome || '130.0.0.0').split('.')[0];
+  const engineChrome = process.versions.chrome || '140.0.0.0';
+  if (config.userAgent) return String(config.userAgent).replace(/Chrome\/[\d.]+/, `Chrome/${engineChrome}`);
+  const chromeMajor = engineChrome.split('.')[0];
   const platform =
     process.platform === 'win32'
       ? 'Windows NT 10.0; Win64; x64'
@@ -219,7 +219,7 @@ function attachClientHints(ses) {
   if (ses.__chatboxClientHints) return;
   ses.__chatboxClientHints = true;
   ses.webRequest.onBeforeSendHeaders({ urls: ['*://*/*'] }, (details, callback) => {
-    const hints = chromeClientHints(config.userAgent || chromeUserAgent());
+    const hints = chromeClientHints(chromeUserAgent());
     if (!hints) return callback({});
     const headers = { ...details.requestHeaders };
     for (const [name, value] of Object.entries(hints)) {
@@ -256,10 +256,44 @@ function applyDragStripToAll() {
   for (const view of siteViews.values()) applyDragStripToView(view);
 }
 
+function isGoogleSite(site) {
+  try {
+    if (/(^|\.)google\.com$/.test(new URL(site.url).hostname)) return true;
+  } catch (e) {}
+  return (site.domains || []).some((domain) => {
+    const clean = String(domain).replace(/^\./, '');
+    return clean === 'google.com' || clean.endsWith('.google.com');
+  });
+}
+
+function attachStealth(partition, site) {
+  if (!isGoogleSite(site) || partition.__chatboxStealth) return;
+  partition.__chatboxStealth = true;
+  try {
+    partition.registerPreloadScript({ filePath: path.join(__dirname, 'stealth.js'), type: 'frame' });
+  } catch (e) {}
+}
+
+let stealthSourceCache = null;
+function stealthSource() {
+  if (stealthSourceCache === null) {
+    try { stealthSourceCache = fs.readFileSync(path.join(__dirname, 'stealth.js'), 'utf8'); }
+    catch (e) { stealthSourceCache = ''; }
+  }
+  return stealthSourceCache;
+}
+
+function applyStealthLate(view, site) {
+  if (!isGoogleSite(site) || view.webContents.isDestroyed()) return;
+  const code = stealthSource();
+  if (code) view.webContents.executeJavaScript(code, true).catch(() => {});
+}
+
 function createSiteView(site) {
   const partition = siteSession(site);
   partition.setUserAgent(chromeUserAgent());
   attachClientHints(partition);
+  attachStealth(partition, site);
   if (config.proxyMode === 'custom' && config.proxyRules) {
     partition.setProxy({ mode: 'fixed_servers', proxyRules: effectiveProxyRules() }).catch(() => {});
   } else if (config.proxyMode === 'direct') {
@@ -291,6 +325,7 @@ function createSiteView(site) {
     const current = siteById(site.id);
     if (current && !current.icon) tryFetchFavicon(site.id);
     applyDragStripToView(view);
+    applyStealthLate(view, site);
   });
   view.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
     if (!isMainFrame || errorCode === -3) return;
@@ -1059,9 +1094,10 @@ async function importCookies() {
       return view;
     },
     setUserAgent: (userAgent) => {
-      config.userAgent = userAgent;
+      const aligned = String(userAgent).replace(/Chrome\/[\d.]+/, `Chrome/${process.versions.chrome || '140.0.0.0'}`);
+      config.userAgent = aligned;
       configStore.save(config);
-      for (const site of enabledSites()) siteSession(site).setUserAgent(userAgent);
+      for (const site of enabledSites()) siteSession(site).setUserAgent(aligned);
     }
   });
   try {
