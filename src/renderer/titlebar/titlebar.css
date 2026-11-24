@@ -1,3 +1,5 @@
+@import "../common/theme.css";
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
@@ -14,18 +16,18 @@ html, body {
   align-items: center;
   gap: 10px;
   padding: 0 12px;
-  background: rgba(28, 29, 35, 0.97);
+  background: var(--overlay);
   border-radius: 12px;
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 32px var(--shadow);
   -webkit-app-region: drag;
 }
 
 .bar.docked {
   border-radius: 0;
   border: none;
-  border-bottom: 1px solid #2c2e36;
+  border-bottom: 1px solid var(--border);
   box-shadow: none;
-  background: #1c1d23;
+  background: var(--bg-elev);
   gap: 6px;
   padding: 0 8px;
   -webkit-app-region: no-drag;
@@ -54,14 +56,14 @@ html, body {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: #9a9da6;
+  color: var(--text-mute);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.nav-btn:hover { background: #2c2e36; color: #fff; }
+.nav-btn:hover { background: var(--bg-hover); color: var(--text); }
 
 .url-wrap {
   flex: 1;
@@ -73,17 +75,17 @@ html, body {
   width: 100%;
   max-width: 560px;
   height: 32px;
-  background: #17181c;
-  border: 1px solid #3a3d46;
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
   border-radius: 9px;
-  color: #d6d8de;
+  color: var(--text-dim);
   font-size: 12.5px;
   padding: 0 12px;
   outline: none;
   -webkit-app-region: no-drag;
 }
 
-.url-input:focus { border-color: #4d6bfe; color: #fff; }
+.url-input:focus { border-color: #4d6bfe; color: var(--text); }
 
 .win-controls {
   display: flex;
@@ -97,12 +99,12 @@ html, body {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: #9a9da6;
+  color: var(--text-mute);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.win-btn:hover { background: #2c2e36; color: #fff; }
+.win-btn:hover { background: var(--bg-hover); color: var(--text); }
 .win-btn.close:hover { background: #e5484d; color: #fff; }

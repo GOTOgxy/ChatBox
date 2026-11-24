@@ -103,16 +103,19 @@ function refreshTitles() {
   }
 }
 
-window.chatbox.onInit(({ sites: list, active, hotkeys: keys, opened, accentColor }) => {
+window.chatbox.onInit(({ sites: list, active, hotkeys: keys, opened, accentColor, theme }) => {
   if (keys) hotkeys = keys;
   if (opened) openedIds = new Set(opened);
   if (accentColor) document.documentElement.style.setProperty('--accent', accentColor);
+  applyTheme(theme);
   render(list, active);
 });
 
 window.chatbox.onAccentUpdate(({ accentColor }) => {
   if (accentColor) document.documentElement.style.setProperty('--accent', accentColor);
 });
+
+window.chatbox.onThemeUpdate(({ theme }) => applyTheme(theme));
 
 window.chatbox.onActive(({ id }) => {
   for (const [siteId, button] of buttons) {

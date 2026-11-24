@@ -1,0 +1,44 @@
+:root {
+  --accent: #ff5fa2;
+  --bg: #17181c;
+  --bg-elev: #212228;
+  --bg-input: #17181c;
+  --bg-hover: #2c2e36;
+  --border: #33353d;
+  --border-input: #3a3d46;
+  --text: #e6e7ea;
+  --text-dim: #c9cbd2;
+  --text-mute: #8b8e98;
+  --text-faint: #5a5d66;
+  --scroll: #3a3d46;
+  --scroll-hover: #4a4d58;
+  --ok: #9fe6b0;
+  --err: #ff9b9b;
+  --shadow: rgba(0, 0, 0, 0.5);
+  --overlay: rgba(23, 24, 28, 0.92);
+  --card-bg: rgba(255, 255, 255, 0.04);
+  --card-bg-active: rgba(255, 255, 255, 0.1);
+  --card-border: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme="light"] {
+  --bg: #f2f3f6;
+  --bg-elev: #ffffff;
+  --bg-input: #f2f3f6;
+  --bg-hover: #e6e8ee;
+  --border: #dcdfe6;
+  --border-input: #ccd0d9;
+  --text: #1c1e24;
+  --text-dim: #3a3d46;
+  --text-mute: #6b7080;
+  --text-faint: #9aa0ad;
+  --scroll: #c4c8d2;
+  --scroll-hover: #aab0bd;
+  --ok: #1a7f4b;
+  --err: #c0392b;
+  --shadow: rgba(0, 0, 0, 0.16);
+  --overlay: rgba(255, 255, 255, 0.94);
+  --card-bg: rgba(0, 0, 0, 0.035);
+  --card-bg-active: rgba(0, 0, 0, 0.08);
+  --card-border: rgba(0, 0, 0, 0.1);
+}

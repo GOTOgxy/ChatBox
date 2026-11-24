@@ -203,6 +203,23 @@ function sendToSidebar(channel, payload) {
   }
 }
 
+function themeBg() {
+  return config.theme === 'light' ? '#f2f3f6' : '#17181c';
+}
+
+function broadcastTheme() {
+  const theme = config.theme || 'dark';
+  sendToSidebar('theme:update', { theme });
+  if (panelView && !panelView.webContents.isDestroyed()) panelView.webContents.send('theme:update', { theme });
+  if (titlebarView && !titlebarView.webContents.isDestroyed()) titlebarView.webContents.send('theme:update', { theme });
+  if (switcherWindow && !switcherWindow.isDestroyed()) {
+    const view = switcherWindow.contentView.children[0];
+    if (view && !view.webContents.isDestroyed()) view.webContents.send('theme:update', { theme });
+  }
+  if (sidebarView && !sidebarView.webContents.isDestroyed()) sidebarView.setBackgroundColor(themeBg());
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(themeBg());
+}
+
 function layoutViews() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const bounds = mainWindow.getContentBounds();
@@ -343,7 +360,7 @@ function createMainWindow() {
       sandbox: false
     }
   });
-  sidebarView.setBackgroundColor('#17181c');
+  sidebarView.setBackgroundColor(themeBg());
   mainWindow.contentView.addChildView(sidebarView);
   sidebarView.webContents.loadFile(path.join(ROOT, 'src', 'renderer', 'sidebar', 'index.html'));
 
@@ -386,6 +403,7 @@ function createMainWindow() {
       hotkeys: currentHotkeys(),
       titlebarMode: config.titlebarMode,
       accentColor: config.accentColor,
+      theme: config.theme || 'dark',
       opened: Array.from(siteViews.keys())
     });
   });
@@ -454,7 +472,7 @@ function toggleSwitcher() {
     Math.round(area.y + area.height * 0.32)
   );
   const view = switcherWindow.contentView.children[0];
-  view.webContents.send('switcher:show', { sites: switcherData(), active: activeSiteId });
+  view.webContents.send('switcher:show', { sites: switcherData(), active: activeSiteId, theme: config.theme || 'dark' });
   switcherWindow.show();
   switcherWindow.focus();
   view.webContents.focus();
@@ -476,8 +494,8 @@ function ensurePanelWindow() {
   if (panelWindow && !panelWindow.isDestroyed()) return;
   panelReady = false;
   panelWindow = new BaseWindow({
-    width: 480,
-    height: 460,
+    width: 540,
+    height: 580,
     frame: false,
     resizable: false,
     movable: false,
@@ -619,6 +637,7 @@ function pushTitlebarState() {
   titlebarView.webContents.send('titlebar:show', {
     platform: process.platform,
     mode: config.titlebarMode,
+    theme: config.theme || 'dark',
     site: siteById(activeSiteId),
     url: activeView ? activeView.webContents.getURL() : ''
   });
@@ -898,9 +917,17 @@ function setupIpc() {
     proxyMode: config.proxyMode || 'system',
     proxyRules: config.proxyRules || '',
     accentColor: config.accentColor,
-    homeUrl: config.homeUrl || ''
+    homeUrl: config.homeUrl || '',
+    theme: config.theme || 'dark'
   }));
   ipcMain.handle('settings:set-titlebar-mode', (_event, mode) => setTitlebarMode(mode));
+  ipcMain.handle('settings:set-theme', (_event, theme) => {
+    config.theme = theme === 'light' ? 'light' : 'dark';
+    configStore.save(config);
+    sync.schedulePush();
+    broadcastTheme();
+    return { ok: true, theme: config.theme };
+  });
   ipcMain.handle('settings:set-home', (_event, url) => {
     const value = String(url || '').trim();
     if (value && !/^https?:\/\//i.test(value)) {
@@ -971,11 +998,13 @@ function setupIpc() {
     const result = await sync.configure(options || {});
     return { ...result, status: sync.status() };
   });
-  ipcMain.handle('sync:now', async () => {
-    const pushed = await sync.push();
-    if (!pushed.ok) return { ...pushed, status: sync.status() };
-    const pulled = await sync.pull();
-    return { ...pulled, status: sync.status() };
+  ipcMain.handle('sync:upload', async () => {
+    const result = await sync.push();
+    return { ...result, status: sync.status() };
+  });
+  ipcMain.handle('sync:pull', async () => {
+    const result = await sync.pull();
+    return { ...result, status: sync.status() };
   });
   ipcMain.handle('hotkeys:set', (_event, { kind, id, accelerator }) =>
     setHotkey(kind, id, accelerator)

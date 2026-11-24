@@ -15,93 +15,122 @@
     </div>
 
     <section id="settings-section">
-      <div class="setting-row">
-        <span class="hotkey-label">标题栏样式</span>
-        <div class="seg">
-          <button id="mode-floating" class="seg-btn">悬浮</button>
-          <button id="mode-docked" class="seg-btn">顶部固定</button>
+      <div class="tabs" id="settings-tabs">
+        <button class="tab-btn active" data-tab="general">通用</button>
+        <button class="tab-btn" data-tab="hotkeys">快捷键</button>
+        <button class="tab-btn" data-tab="sync">云同步</button>
+        <button class="tab-btn" data-tab="about">关于</button>
+      </div>
+
+      <div class="tab-pane active" data-pane="general">
+        <div class="setting-row">
+          <span class="hotkey-label">主题</span>
+          <div class="seg">
+            <button id="theme-dark" class="seg-btn">深色</button>
+            <button id="theme-light" class="seg-btn">浅色</button>
+          </div>
         </div>
-      </div>
-      <div class="setting-row">
-        <span class="hotkey-label">指示条颜色</span>
-        <input id="accent-color" type="color" class="form-color" value="#ff5fa2" title="自定义颜色" />
-      </div>
-      <div class="setting-row">
-        <span class="hotkey-label"></span>
-        <div id="accent-swatches" class="swatches"></div>
-      </div>
-      <div class="form-row">
-        <label class="form-label">主页地址</label>
-        <input id="home-url" class="form-input" placeholder="留空 = 当前站点首页" spellcheck="false" />
-        <button id="home-apply" class="btn">应用</button>
-      </div>
-      <p id="home-status" class="status"></p>
-      <div class="setting-row">
-        <span class="hotkey-label">网络代理</span>
-        <div class="seg">
-          <button id="proxy-system" class="seg-btn">系统代理</button>
-          <button id="proxy-custom" class="seg-btn">自定义</button>
+        <div class="setting-row">
+          <span class="hotkey-label">标题栏样式</span>
+          <div class="seg">
+            <button id="mode-floating" class="seg-btn">悬浮</button>
+            <button id="mode-docked" class="seg-btn">顶部固定</button>
+          </div>
         </div>
+        <div class="setting-row">
+          <span class="hotkey-label">指示条颜色</span>
+          <input id="accent-color" type="color" class="form-color" value="#ff5fa2" title="自定义颜色" />
+        </div>
+        <div class="setting-row">
+          <span class="hotkey-label"></span>
+          <div id="accent-swatches" class="swatches"></div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">主页地址</label>
+          <input id="home-url" class="form-input" placeholder="留空 = 当前站点首页" spellcheck="false" />
+          <button id="home-apply" class="btn">应用</button>
+        </div>
+        <p id="home-status" class="status"></p>
+        <div class="setting-row">
+          <span class="hotkey-label">开机自启</span>
+          <label class="check-row"><input id="auto-launch" type="checkbox" /> 开机时静默启动到托盘</label>
+        </div>
+        <div class="section-divider">网络代理</div>
+        <div class="setting-row">
+          <span class="hotkey-label">代理模式</span>
+          <div class="seg">
+            <button id="proxy-system" class="seg-btn">系统代理</button>
+            <button id="proxy-custom" class="seg-btn">自定义</button>
+          </div>
+        </div>
+        <div id="proxy-custom-row" class="form-row hidden">
+          <label class="form-label">规则</label>
+          <input id="proxy-rules" class="form-input" placeholder="http=127.0.0.1:7890;https=127.0.0.1:7890" spellcheck="false" />
+          <button id="proxy-apply" class="btn">应用</button>
+        </div>
+        <p id="proxy-status" class="status"></p>
       </div>
-      <div id="proxy-custom-row" class="form-row hidden">
-        <label class="form-label">规则</label>
-        <input id="proxy-rules" class="form-input" placeholder="http=127.0.0.1:7890;https=127.0.0.1:7890" spellcheck="false" />
-        <button id="proxy-apply" class="btn">应用</button>
+
+      <div class="tab-pane" data-pane="hotkeys">
+        <p class="note">点击输入框后按下组合键即可录制;Backspace/Delete 清除,Esc 取消。需包含 Ctrl/Alt/Shift/Win 之一。</p>
+        <div class="hotkey-row">
+          <span class="hotkey-label">快捷切换面板</span>
+          <input class="hotkey-input" data-kind="switcher" readonly />
+        </div>
+        <div class="hotkey-row">
+          <span class="hotkey-label">唤起主窗口</span>
+          <input class="hotkey-input" data-kind="showApp" readonly />
+        </div>
+        <div class="section-divider">各站点直达</div>
+        <div id="site-hotkeys"></div>
+        <p id="hotkey-status" class="status"></p>
       </div>
-      <p id="proxy-status" class="status"></p>
-      <p class="note">点击输入框后按下组合键即可录制;Backspace/Delete 清除,Esc 取消。需包含 Ctrl/Alt/Shift/Win 之一。</p>
-      <div class="hotkey-row">
-        <span class="hotkey-label">快捷切换面板</span>
-        <input class="hotkey-input" data-kind="switcher" readonly />
+
+      <div class="tab-pane" data-pane="sync">
+        <p class="note">基于标准 WebDAV(坚果云 / NAS 等)。快捷键与站点名册跟随网盘漫游;登录态与本机凭据永不上传。</p>
+        <div class="setting-row">
+          <span class="hotkey-label">启用同步</span>
+          <label class="check-row"><input id="sync-enabled" type="checkbox" /> 开启自动同步</label>
+        </div>
+        <div class="form-row">
+          <label class="form-label">服务器</label>
+          <input id="sync-server" class="form-input" placeholder="https://dav.jianguoyun.com/dav/" spellcheck="false" />
+        </div>
+        <div class="form-row">
+          <label class="form-label">账号</label>
+          <input id="sync-user" class="form-input" spellcheck="false" />
+        </div>
+        <div class="form-row">
+          <label class="form-label">应用密码</label>
+          <input id="sync-pass" class="form-input" type="password" placeholder="留空则不修改" />
+        </div>
+        <div class="form-row">
+          <label class="form-label">远端目录</label>
+          <input id="sync-dir" class="form-input" placeholder="/ChatBox/" spellcheck="false" />
+          <button id="sync-save" class="btn">保存</button>
+        </div>
+        <div class="actions">
+          <button id="sync-upload" class="btn">上传到云端</button>
+          <button id="sync-pull" class="btn ghost">从云端拉取</button>
+        </div>
+        <p id="sync-status" class="status"></p>
       </div>
-      <div class="hotkey-row">
-        <span class="hotkey-label">唤起主窗口</span>
-        <input class="hotkey-input" data-kind="showApp" readonly />
-      </div>
-      <div id="site-hotkeys"></div>
-      <p id="hotkey-status" class="status"></p>
-      <div class="setting-row">
-        <span class="hotkey-label">开机自启</span>
-        <label class="check-row"><input id="auto-launch" type="checkbox" /> 开机时静默启动到托盘</label>
-      </div>
-      <div class="section-divider">云同步(WebDAV)</div>
-      <div class="setting-row">
-        <span class="hotkey-label">启用同步</span>
-        <label class="check-row"><input id="sync-enabled" type="checkbox" /> 快捷键/站点名册跟随网盘漫游(登录态永不上传)</label>
-      </div>
-      <div class="form-row">
-        <label class="form-label">服务器</label>
-        <input id="sync-server" class="form-input" placeholder="https://dav.jianguoyun.com/dav/" spellcheck="false" />
-      </div>
-      <div class="form-row">
-        <label class="form-label">账号</label>
-        <input id="sync-user" class="form-input" spellcheck="false" />
-      </div>
-      <div class="form-row">
-        <label class="form-label">应用密码</label>
-        <input id="sync-pass" class="form-input" type="password" placeholder="留空则不修改" />
-      </div>
-      <div class="form-row">
-        <label class="form-label">远端目录</label>
-        <input id="sync-dir" class="form-input" placeholder="/ChatBox/" spellcheck="false" />
-        <button id="sync-save" class="btn">保存</button>
-        <button id="sync-now" class="btn ghost">立即同步</button>
-      </div>
-      <p id="sync-status" class="status"></p>
-      <div class="section-divider">关于</div>
-      <div class="setting-row">
-        <span class="hotkey-label">数据目录</span>
-        <button id="open-user-data" class="btn ghost">打开</button>
-      </div>
-      <p id="user-data-path" class="note path-note"></p>
-      <div class="setting-row update-row">
-        <span class="hotkey-label">版本 <span id="version-text" class="version"></span></span>
-        <button id="check-update" class="btn">检查更新</button>
-      </div>
-      <p id="update-status" class="status"></p>
-      <div class="actions hidden" id="update-actions">
-        <button id="update-install" class="btn primary">立即更新</button>
-        <button id="update-browser" class="btn ghost">在浏览器中下载</button>
+
+      <div class="tab-pane" data-pane="about">
+        <div class="setting-row">
+          <span class="hotkey-label">数据目录</span>
+          <button id="open-user-data" class="btn ghost">打开</button>
+        </div>
+        <p id="user-data-path" class="note path-note"></p>
+        <div class="setting-row update-row">
+          <span class="hotkey-label">版本 <span id="version-text" class="version"></span></span>
+          <button id="check-update" class="btn">检查更新</button>
+        </div>
+        <p id="update-status" class="status"></p>
+        <div class="actions hidden" id="update-actions">
+          <button id="update-install" class="btn primary">立即更新</button>
+          <button id="update-browser" class="btn ghost">在浏览器中下载</button>
+        </div>
       </div>
     </section>
 
@@ -200,6 +229,7 @@
       <p id="import-status" class="status"></p>
     </section>
   </div>
+  <script src="../common/theme.js"></script>
   <script src="panel.js"></script>
 </body>
 </html>

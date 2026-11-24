@@ -5,6 +5,7 @@ const { SITES } = require('../shared/sites');
 
 const PROFILE_DEFAULTS = {
   titlebarMode: 'floating',
+  theme: 'dark',
   accentColor: '#ff5fa2',
   homeUrl: '',
   proxyMode: 'system',

@@ -7,9 +7,12 @@ window.chatbox.onTitlebarShow((data) => {
   document.getElementById('win-left').style.display = isMac ? 'flex' : 'none';
   document.getElementById('win-right').style.display = isMac ? 'none' : 'flex';
   document.getElementById('bar').classList.toggle('docked', data.mode === 'docked');
+  applyTheme(data.theme);
   urlInput.value = data.url || '';
   document.body.dataset.ready = '1';
 });
+
+window.chatbox.onThemeUpdate(({ theme }) => applyTheme(theme));
 
 window.chatbox.onUrl(({ url }) => {
   if (document.activeElement !== urlInput) urlInput.value = url || '';

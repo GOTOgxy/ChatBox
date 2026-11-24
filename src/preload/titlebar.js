@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('chatbox', {
   onTitlebarShow: (callback) => ipcRenderer.on('titlebar:show', (_event, data) => callback(data)),
   onUrl: (callback) => ipcRenderer.on('titlebar:url', (_event, data) => callback(data)),
+  onThemeUpdate: (callback) => ipcRenderer.on('theme:update', (_event, data) => callback(data)),
   closeTitlebar: () => ipcRenderer.send('titlebar:close'),
   navigate: (url) => ipcRenderer.send('titlebar:navigate', url),
   goBack: () => ipcRenderer.send('titlebar:back'),

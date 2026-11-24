@@ -1,11 +1,11 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
+@import "../common/theme.css";
 
-:root { --accent: #ff5fa2; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
   height: 100%;
   overflow: hidden;
-  background: #17181c;
+  background: var(--bg);
   font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
   user-select: none;
 }
@@ -22,7 +22,7 @@ body {
 }
 
 body::-webkit-scrollbar { width: 4px; }
-body::-webkit-scrollbar-thumb { background: #3a3d46; border-radius: 2px; }
+body::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 2px; }
 
 #sites {
   flex-shrink: 0;
@@ -65,7 +65,7 @@ body::-webkit-scrollbar-thumb { background: #3a3d46; border-radius: 2px; }
 
 .app-name {
   font-size: 9.5px;
-  color: #6d7078;
+  color: var(--text-faint);
   letter-spacing: 0.4px;
 }
 
@@ -131,7 +131,7 @@ body::-webkit-scrollbar-thumb { background: #3a3d46; border-radius: 2px; }
   display: none;
   align-items: center;
   justify-content: center;
-  border: 2px solid #17181c;
+  border: 2px solid var(--bg);
 }
 
 .badge.show { display: flex; }
@@ -163,8 +163,8 @@ body::-webkit-scrollbar-thumb { background: #3a3d46; border-radius: 2px; }
   gap: 5px;
   margin-bottom: 4px;
   padding: 6px 0;
-  border-top: 1px solid #26282e;
-  border-bottom: 1px solid #26282e;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -180,7 +180,7 @@ body::-webkit-scrollbar-thumb { background: #3a3d46; border-radius: 2px; }
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: #5a5d66;
+  color: var(--text-faint);
   cursor: pointer;
   display: none;
   align-items: center;
@@ -189,7 +189,7 @@ body::-webkit-scrollbar-thumb { background: #3a3d46; border-radius: 2px; }
   -webkit-app-region: no-drag;
 }
 
-.hidden-toggle:hover { background: #24262c; color: #c9cbd2; }
+.hidden-toggle:hover { background: var(--bg-hover); color: var(--text-dim); }
 
 .hidden-count {
   position: absolute;
@@ -199,8 +199,8 @@ body::-webkit-scrollbar-thumb { background: #3a3d46; border-radius: 2px; }
   height: 13px;
   padding: 0 3px;
   border-radius: 7px;
-  background: #3a3d46;
-  color: #c9cbd2;
+  background: var(--border-input);
+  color: var(--text-dim);
   font-size: 9px;
   display: flex;
   align-items: center;
@@ -222,10 +222,10 @@ body::-webkit-scrollbar-thumb { background: #3a3d46; border-radius: 2px; }
   width: 32px;
   height: 32px;
   margin-top: 2px;
-  border: 1px dashed #3a3d46;
+  border: 1px dashed var(--border-input);
   border-radius: 10px;
   background: transparent;
-  color: #5a5d66;
+  color: var(--text-faint);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -233,7 +233,7 @@ body::-webkit-scrollbar-thumb { background: #3a3d46; border-radius: 2px; }
   -webkit-app-region: no-drag;
 }
 
-.add-btn:hover { color: #c9cbd2; border-color: #5a5d66; background: #1e2026; }
+.add-btn:hover { color: var(--text-dim); border-color: var(--text-faint); background: var(--bg-hover); }
 
 .tool-btn {
   width: 44px;
@@ -241,7 +241,7 @@ body::-webkit-scrollbar-thumb { background: #3a3d46; border-radius: 2px; }
   border: none;
   border-radius: 12px;
   background: transparent;
-  color: #8b8e98;
+  color: var(--text-mute);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -249,4 +249,4 @@ body::-webkit-scrollbar-thumb { background: #3a3d46; border-radius: 2px; }
   -webkit-app-region: no-drag;
 }
 
-.tool-btn:hover { background: #24262c; color: #fff; }
+.tool-btn:hover { background: var(--bg-hover); color: var(--text); }

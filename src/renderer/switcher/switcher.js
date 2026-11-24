@@ -31,8 +31,11 @@ function updateSelection() {
 window.chatbox.onShow((data) => {
   sites = data.sites;
   selected = sites.length > 1 ? 1 : 0;
+  applyTheme(data.theme);
   render();
 });
+
+window.chatbox.onThemeUpdate(({ theme }) => applyTheme(theme));
 
 window.chatbox.onSites((data) => {
   sites = data.sites;

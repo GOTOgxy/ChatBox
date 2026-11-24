@@ -205,6 +205,8 @@ window.chatbox.onPanelShow(async (data) => {
     setTitlebarModeUi(settings.titlebarMode);
     setProxyUi(settings.proxyMode, settings.proxyRules);
     setAccentUi(settings.accentColor || '#ff5fa2');
+    setThemeUi(settings.theme || 'dark');
+    applyTheme(settings.theme);
     document.getElementById('home-url').value = settings.homeUrl || '';
     document.getElementById('version-text').textContent = `v${settings.version}`;
   });
@@ -216,6 +218,38 @@ window.chatbox.onPanelShow(async (data) => {
   window.chatbox.extensionPath().then((extPath) => {
     document.getElementById('ext-path').textContent = extPath;
   });
+  selectSettingsTab('general');
+});
+
+function setThemeUi(theme) {
+  document.getElementById('theme-dark').classList.toggle('active', theme !== 'light');
+  document.getElementById('theme-light').classList.toggle('active', theme === 'light');
+}
+
+for (const [buttonId, theme] of [['theme-dark', 'dark'], ['theme-light', 'light']]) {
+  document.getElementById(buttonId).addEventListener('click', async () => {
+    const result = await window.chatbox.setTheme(theme);
+    setThemeUi(result.theme);
+    applyTheme(result.theme);
+  });
+}
+
+window.chatbox.onThemeUpdate(({ theme }) => {
+  setThemeUi(theme);
+  applyTheme(theme);
+});
+
+function selectSettingsTab(name) {
+  document.querySelectorAll('#settings-tabs .tab-btn').forEach((button) => {
+    button.classList.toggle('active', button.dataset.tab === name);
+  });
+  document.querySelectorAll('#settings-section .tab-pane').forEach((pane) => {
+    pane.classList.toggle('active', pane.dataset.pane === name);
+  });
+}
+
+document.querySelectorAll('#settings-tabs .tab-btn').forEach((button) => {
+  button.addEventListener('click', () => selectSettingsTab(button.dataset.tab));
 });
 
 function applySiteConfig(site) {
@@ -525,15 +559,27 @@ document.getElementById('sync-save').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('sync-now').addEventListener('click', async () => {
+document.getElementById('sync-upload').addEventListener('click', async () => {
   const statusEl = document.getElementById('sync-status');
   statusEl.className = 'status';
-  statusEl.textContent = '同步中…';
-  const result = await window.chatbox.syncNow();
+  statusEl.textContent = '上传中…';
+  const result = await window.chatbox.syncUpload();
   renderSyncStatus(result.status);
   if (result.ok) {
     statusEl.className = 'status';
-    statusEl.textContent = '同步完成。';
+    statusEl.textContent = '已上传本机配置到云端。';
+  }
+});
+
+document.getElementById('sync-pull').addEventListener('click', async () => {
+  const statusEl = document.getElementById('sync-status');
+  statusEl.className = 'status';
+  statusEl.textContent = '拉取中…';
+  const result = await window.chatbox.syncPull();
+  renderSyncStatus(result.status);
+  if (result.ok) {
+    statusEl.className = 'status';
+    statusEl.textContent = '已从云端拉取(仅当远端更新时覆盖,登录态不受影响)。';
   }
 });
 
