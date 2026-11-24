@@ -72,10 +72,34 @@
             <button id="proxy-custom" class="seg-btn">自定义</button>
           </div>
         </div>
-        <div id="proxy-custom-row" class="form-row hidden">
-          <label class="form-label">规则</label>
-          <input id="proxy-rules" class="form-input" placeholder="http=127.0.0.1:7890;https=127.0.0.1:7890" spellcheck="false" />
-          <button id="proxy-apply" class="btn">应用</button>
+        <p class="note">系统代理:自动读取本机系统代理设置,无需填写。</p>
+        <div id="proxy-custom-fields" class="hidden">
+          <div class="form-row">
+            <label class="form-label">类型</label>
+            <div class="seg">
+              <button id="proxy-type-http" class="seg-btn">HTTP</button>
+              <button id="proxy-type-socks5" class="seg-btn">SOCKS5</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <label class="form-label">服务器</label>
+            <input id="proxy-host" class="form-input" placeholder="127.0.0.1" spellcheck="false" />
+          </div>
+          <div class="form-row">
+            <label class="form-label">端口</label>
+            <input id="proxy-port" class="form-input" placeholder="7897" spellcheck="false" />
+          </div>
+          <div class="form-row">
+            <label class="form-label">用户名</label>
+            <input id="proxy-user" class="form-input" placeholder="选填" spellcheck="false" />
+          </div>
+          <div class="form-row">
+            <label class="form-label">密码</label>
+            <input id="proxy-pass" class="form-input" type="password" placeholder="选填" />
+          </div>
+          <div class="actions">
+            <button id="proxy-apply" class="btn">应用</button>
+          </div>
         </div>
         <p id="proxy-status" class="status"></p>
       </div>
@@ -120,14 +144,11 @@
           <span class="hotkey-label">启用同步</span>
           <label class="check-row"><input id="sync-enabled" type="checkbox" /> 允许手动上传 / 拉取</label>
         </div>
-        <div class="setting-row">
-          <span class="hotkey-label">自动同步</span>
-          <label class="check-row"><input id="sync-auto" type="checkbox" /> 后台自动上传与拉取</label>
-        </div>
-        <p class="note">自动同步会在后台上传本机配置并拉取远端更新,可能覆盖云端或本机配置。建议先手动「上传到云端」或「从云端拉取」确认内容后再开启。</p>
+        <p class="note">自动同步会在后台上传本机配置并拉取远端更新,可能覆盖云端或本机配置。建议先手动拉取 / 上传确认内容后再开启。</p>
         <div class="actions">
-          <button id="sync-upload" class="btn">上传到云端</button>
-          <button id="sync-pull" class="btn ghost">从云端拉取</button>
+          <button id="sync-pull" class="btn primary">从云端拉取</button>
+          <button id="sync-upload" class="btn ghost">上传到云端</button>
+          <label class="check-row sync-auto-inline"><input id="sync-auto" type="checkbox" /> 自动同步</label>
         </div>
         <p id="sync-status" class="status"></p>
       </div>

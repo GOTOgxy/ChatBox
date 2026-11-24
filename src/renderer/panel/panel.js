@@ -203,7 +203,7 @@ window.chatbox.onPanelShow(async (data) => {
   fillHotkeyInputs();
   window.chatbox.getSettings().then((settings) => {
     setTitlebarModeUi(settings.titlebarMode);
-    setProxyUi(settings.proxyMode, settings.proxyRules);
+    setProxyUi(settings);
     setAccentUi(settings.accentColor || '#ff5fa2');
     setThemeUi(settings.theme || 'dark');
     applyTheme(settings.theme);
@@ -437,37 +437,85 @@ document.getElementById('add-color').addEventListener('input', renderAddIconPrev
 bindHotkeyInputs();
 renderAddIconPreview();
 
-function setProxyUi(mode, rules) {
-  document.getElementById('proxy-system').classList.toggle('active', mode !== 'custom');
-  document.getElementById('proxy-custom').classList.toggle('active', mode === 'custom');
-  document.getElementById('proxy-custom-row').classList.toggle('hidden', mode !== 'custom');
-  if (typeof rules === 'string') document.getElementById('proxy-rules').value = rules;
+let proxyType = 'http';
+
+function setProxyTypeUi(type) {
+  proxyType = type === 'socks5' ? 'socks5' : 'http';
+  document.getElementById('proxy-type-http').classList.toggle('active', proxyType === 'http');
+  document.getElementById('proxy-type-socks5').classList.toggle('active', proxyType === 'socks5');
 }
 
+function setProxyUi(settings) {
+  const mode = settings.proxyMode || 'system';
+  document.getElementById('proxy-system').classList.toggle('active', mode !== 'custom');
+  document.getElementById('proxy-custom').classList.toggle('active', mode === 'custom');
+  document.getElementById('proxy-custom-fields').classList.toggle('hidden', mode !== 'custom');
+  let type = settings.proxyType;
+  let host = settings.proxyHost;
+  let port = settings.proxyPort;
+  if (!host && settings.proxyRules) {
+    const match = /^(socks5|http)=([^:;]+):(\d+)/i.exec(settings.proxyRules.trim());
+    if (match) {
+      type = match[1].toLowerCase();
+      host = match[2];
+      port = match[3];
+    }
+  }
+  setProxyTypeUi(type || 'http');
+  document.getElementById('proxy-host').value = host || '';
+  document.getElementById('proxy-port').value = port || '';
+  document.getElementById('proxy-user').value = settings.proxyUser || '';
+  document.getElementById('proxy-pass').value = '';
+  document.getElementById('proxy-pass').placeholder = settings.proxyHasPass ? '已保存,留空则不修改' : '选填';
+}
+
+document.getElementById('proxy-type-http').addEventListener('click', () => setProxyTypeUi('http'));
+document.getElementById('proxy-type-socks5').addEventListener('click', () => setProxyTypeUi('socks5'));
+
 document.getElementById('proxy-system').addEventListener('click', async () => {
-  const result = await window.chatbox.setProxy('system', '');
-  setProxyUi(result.proxyMode, result.proxyRules);
+  const result = await window.chatbox.setProxyStructured({ mode: 'system' });
   const statusEl = document.getElementById('proxy-status');
-  statusEl.className = 'status';
-  statusEl.textContent = '已切换为系统代理。';
+  if (result.ok) {
+    document.getElementById('proxy-system').classList.add('active');
+    document.getElementById('proxy-custom').classList.remove('active');
+    document.getElementById('proxy-custom-fields').classList.add('hidden');
+    statusEl.className = 'status';
+    statusEl.textContent = '已切换为系统代理,自动读取本机设置。';
+  }
 });
 
 document.getElementById('proxy-custom').addEventListener('click', () => {
-  setProxyUi('custom');
+  document.getElementById('proxy-system').classList.remove('active');
+  document.getElementById('proxy-custom').classList.add('active');
+  document.getElementById('proxy-custom-fields').classList.remove('hidden');
 });
 
 document.getElementById('proxy-apply').addEventListener('click', async () => {
-  const rules = document.getElementById('proxy-rules').value.trim();
   const statusEl = document.getElementById('proxy-status');
-  if (!rules) {
+  const host = document.getElementById('proxy-host').value.trim();
+  const port = document.getElementById('proxy-port').value.trim();
+  if (!host || !/^\d{1,5}$/.test(port)) {
     statusEl.className = 'status error';
-    statusEl.textContent = '请填写代理规则,例如 http=127.0.0.1:7890;https=127.0.0.1:7890';
+    statusEl.textContent = '请填写服务器和有效端口(1-65535)。';
     return;
   }
-  const result = await window.chatbox.setProxy('custom', rules);
-  setProxyUi(result.proxyMode, result.proxyRules);
-  statusEl.className = 'status';
-  statusEl.textContent = '代理已应用,刷新页面后生效。';
+  const result = await window.chatbox.setProxyStructured({
+    mode: 'custom',
+    type: proxyType,
+    host,
+    port,
+    username: document.getElementById('proxy-user').value,
+    password: document.getElementById('proxy-pass').value
+  });
+  if (result.ok) {
+    document.getElementById('proxy-pass').value = '';
+    document.getElementById('proxy-pass').placeholder = '已保存,留空则不修改';
+    statusEl.className = 'status';
+    statusEl.textContent = '代理已应用,刷新页面后生效。';
+  } else {
+    statusEl.className = 'status error';
+    statusEl.textContent = result.error;
+  }
 });
 
 for (const [buttonId, mode] of [['mode-floating', 'floating'], ['mode-docked', 'docked']]) {
@@ -616,6 +664,13 @@ document.getElementById('sync-auto').addEventListener('change', async (event) =>
 
 document.getElementById('sync-upload').addEventListener('click', async () => {
   const statusEl = document.getElementById('sync-status');
+  const confirmResult = await window.chatbox.confirmDanger({
+    title: '上传到云端',
+    message: '确定上传本机配置到云端吗?',
+    detail: '上传会用本机配置覆盖云端已有配置。若本机是全新空配置,云端原有配置将被覆盖。建议先「从云端拉取」确认内容。',
+    confirmLabel: '上传到云端'
+  });
+  if (!confirmResult.ok) return;
   statusEl.className = 'status';
   statusEl.textContent = '上传中…';
   const result = await window.chatbox.syncUpload();

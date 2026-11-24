@@ -12,6 +12,7 @@ const {
   Menu,
   nativeImage,
   nativeTheme,
+  safeStorage,
   screen,
   dialog
 } = require('electron');
@@ -125,9 +126,48 @@ async function applyProxy() {
   }
 }
 
+function proxyPassword() {
+  if (!config.proxyPassEnc) return '';
+  try {
+    return safeStorage.decryptString(Buffer.from(config.proxyPassEnc, 'base64'));
+  } catch {
+    return '';
+  }
+}
+
+function buildProxyRules(type, host, port) {
+  const scheme = type === 'socks5' ? 'socks5' : 'http';
+  return `${scheme}=${host}:${port}`;
+}
+
+function parseProxyRules(rules) {
+  const match = /^(socks5|http)=([^:;]+):(\d+)/i.exec(String(rules || '').trim());
+  if (!match) return { type: 'http', host: '', port: '' };
+  return { type: match[1].toLowerCase(), host: match[2], port: match[3] };
+}
+
+function attachProxyAuth() {
+  const handler = (event, webContents, request, authInfo, callback) => {
+    if (authInfo.isProxy && config.proxyMode === 'custom' && config.proxyUser) {
+      event.preventDefault();
+      callback(config.proxyUser, proxyPassword());
+    }
+  };
+  const sessions = [session.defaultSession, ...sites.map((site) => session.fromPartition(`persist:${site.id}`))];
+  for (const ses of sessions) {
+    if (ses.__chatboxProxyAuth) ses.removeListener('login', ses.__chatboxProxyAuth);
+    ses.__chatboxProxyAuth = handler;
+    ses.on('login', handler);
+  }
+}
+
 function createSiteView(site) {
   const partition = siteSession(site);
   partition.setUserAgent(chromeUserAgent());
+  if (config.proxyMode === 'custom' && config.proxyRules) {
+    partition.setProxy({ mode: 'fixed_servers', proxyRules: config.proxyRules }).catch(() => {});
+  }
+  attachProxyAuth();
   const view = new WebContentsView({
     webPreferences: {
       partition: `persist:${site.id}`,
@@ -923,6 +963,11 @@ function setupIpc() {
     version: app.getVersion(),
     proxyMode: config.proxyMode || 'system',
     proxyRules: config.proxyRules || '',
+    proxyType: config.proxyType || 'http',
+    proxyHost: config.proxyHost || '',
+    proxyPort: config.proxyPort || '',
+    proxyUser: config.proxyUser || '',
+    proxyHasPass: Boolean(config.proxyPassEnc),
     accentColor: config.accentColor,
     homeUrl: config.homeUrl || '',
     theme: config.theme || 'dark',
@@ -1145,6 +1190,34 @@ function setupIpc() {
     await applyProxy();
     return { ok: true, proxyMode: config.proxyMode, proxyRules: config.proxyRules };
   });
+  ipcMain.handle('settings:set-proxy-structured', async (_event, options) => {
+    const opts = options || {};
+    if (opts.mode === 'system') {
+      config.proxyMode = 'system';
+    } else {
+      const host = String(opts.host || '').trim();
+      const port = String(opts.port || '').trim();
+      if (!host || !/^\d{1,5}$/.test(port) || Number(port) < 1 || Number(port) > 65535) {
+        return { ok: false, error: '请填写有效的服务器和端口(1-65535)' };
+      }
+      config.proxyMode = 'custom';
+      config.proxyType = opts.type === 'socks5' ? 'socks5' : 'http';
+      config.proxyHost = host;
+      config.proxyPort = port;
+      config.proxyUser = String(opts.username || '').trim();
+      config.proxyRules = buildProxyRules(config.proxyType, host, port);
+      if (opts.password) {
+        config.proxyPassEnc = safeStorage.isEncryptionAvailable()
+          ? safeStorage.encryptString(String(opts.password)).toString('base64')
+          : Buffer.from(String(opts.password)).toString('base64');
+      }
+    }
+    configStore.save(config);
+    sync.schedulePush();
+    await applyProxy();
+    attachProxyAuth();
+    return { ok: true, proxyMode: config.proxyMode };
+  });
   ipcMain.handle('sites:reorder', (_event, orderedIds) => {
     const byId = new Map(sites.map((site) => [site.id, site]));
     const reordered = [];
@@ -1327,6 +1400,7 @@ if (!gotLock) {
     sites = sitesStore.load();
     applyWebTheme();
     applyProxy().catch(() => {});
+    attachProxyAuth();
     try {
       nativeHost.register();
     } catch {
