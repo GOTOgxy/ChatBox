@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld('chatbox', {
   setWebTheme: (mode) => ipcRenderer.invoke('settings:set-web-theme', mode),
   setDragStrip: (enabled) => ipcRenderer.invoke('settings:set-drag-strip', enabled),
   setDragStripHeight: (height) => ipcRenderer.invoke('settings:set-drag-strip-height', height),
+  setGpu: (enabled) => ipcRenderer.invoke('settings:set-gpu', enabled),
   downloadsList: () => ipcRenderer.invoke('downloads:list'),
   downloadsPause: (id) => ipcRenderer.invoke('downloads:pause', id),
   downloadsResume: (id) => ipcRenderer.invoke('downloads:resume', id),

@@ -28,19 +28,30 @@ require('./mechanisms/login-import');
 
 const startHidden = process.argv.includes('--hidden');
 
-const GPU_MARKER = '.gpu-ok';
-const gpuMarkerPath = path.join(app.getPath('appData'), 'ChatBox', GPU_MARKER);
-let gpuMarked = false;
-let gpuSoftwareMode = false;
-try {
-  if (fs.existsSync(gpuMarkerPath)) {
-    fs.unlinkSync(gpuMarkerPath);
-  } else {
-    gpuSoftwareMode = true;
-    app.disableHardwareAcceleration();
-    app.commandLine.appendSwitch('disable-gpu-compositing');
+const RENDER_PREF_FILE = 'render-mode.json';
+function renderPrefPath() {
+  return path.join(app.getPath('appData'), 'ChatBox', RENDER_PREF_FILE);
+}
+function readRenderPref() {
+  try {
+    return JSON.parse(fs.readFileSync(renderPrefPath(), 'utf8')) || {};
+  } catch {
+    return {};
   }
-} catch {
+}
+function writeRenderPref(patch) {
+  try {
+    const next = { ...readRenderPref(), ...patch };
+    fs.mkdirSync(path.dirname(renderPrefPath()), { recursive: true });
+    fs.writeFileSync(renderPrefPath(), JSON.stringify(next));
+  } catch {
+  }
+}
+const renderPref = readRenderPref();
+let forceSoftware = Boolean(renderPref.software) || process.argv.includes('--software-render');
+if (forceSoftware) {
+  app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch('disable-gpu-compositing');
 }
 
 const SIDEBAR_WIDTH = 64;
@@ -127,19 +138,7 @@ function chromeUserAgent() {
 }
 
 function siteSession(site) {
-  const ses = session.fromPartition(`persist:${site.id}`);
-  if (!ses.__chatboxDragPreload) {
-    ses.__chatboxDragPreload = true;
-    try {
-      ses.registerPreloadScript({
-        id: 'chatbox-drag-strip',
-        type: 'frame',
-        filePath: path.join(__dirname, '..', 'preload', 'site-drag.js')
-      });
-    } catch {
-    }
-  }
-  return ses;
+  return session.fromPartition(`persist:${site.id}`);
 }
 
 async function applyProxy() {
@@ -197,34 +196,9 @@ function dragStripInjectCode() {
     const existing = document.getElementById('${DRAG_STRIP_ID}');
     if (existing) existing.remove();
     if (!${config.webDragStrip ? 'true' : 'false'}) return;
-    if (!window.chatboxDrag) return;
     const strip = document.createElement('div');
     strip.id = '${DRAG_STRIP_ID}';
-    strip.style.cssText = 'position:fixed;top:0;left:0;right:0;height:${stripHeight}px;z-index:2147483647;cursor:grab;background:transparent;';
-    let timer = null;
-    let startX = 0;
-    let startY = 0;
-    let dragging = false;
-    const stop = () => {
-      if (timer) { clearTimeout(timer); timer = null; }
-      if (dragging) { dragging = false; strip.style.cursor = 'grab'; window.chatboxDrag.stripEnd(); }
-    };
-    strip.addEventListener('mousedown', (event) => {
-      if (event.button !== 0) return;
-      event.preventDefault();
-      startX = event.screenX;
-      startY = event.screenY;
-      timer = setTimeout(() => {
-        dragging = true;
-        strip.style.cursor = 'grabbing';
-        window.chatboxDrag.stripStart(startX, startY);
-      }, 300);
-    });
-    strip.addEventListener('mousemove', (event) => {
-      if (timer && Math.hypot(event.screenX - startX, event.screenY - startY) > 4) { clearTimeout(timer); timer = null; }
-    });
-    strip.addEventListener('mouseup', stop);
-    strip.addEventListener('mouseleave', stop);
+    strip.style.cssText = 'position:fixed;top:0;left:0;right:0;height:${stripHeight}px;z-index:2147483647;-webkit-app-region:drag;cursor:grab;background:transparent;';
     document.documentElement.appendChild(strip);
   })()`;
 }
@@ -236,31 +210,6 @@ function applyDragStripToView(view) {
 
 function applyDragStripToAll() {
   for (const view of siteViews.values()) applyDragStripToView(view);
-}
-
-let stripDragTimer = null;
-let stripDragLast = null;
-
-function startStripDrag(screenX, screenY) {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  stripDragLast = { x: screenX, y: screenY };
-  clearInterval(stripDragTimer);
-  stripDragTimer = setInterval(() => {
-    if (!mainWindow || mainWindow.isDestroyed() || !stripDragLast) return;
-    const cursor = screen.getCursorScreenPoint();
-    const dx = cursor.x - stripDragLast.x;
-    const dy = cursor.y - stripDragLast.y;
-    if (dx === 0 && dy === 0) return;
-    stripDragLast = { x: cursor.x, y: cursor.y };
-    const bounds = mainWindow.getBounds();
-    mainWindow.setBounds({ x: bounds.x + dx, y: bounds.y + dy, width: bounds.width, height: bounds.height });
-  }, 16);
-}
-
-function endStripDrag() {
-  clearInterval(stripDragTimer);
-  stripDragTimer = null;
-  stripDragLast = null;
 }
 
 function createSiteView(site) {
@@ -358,18 +307,6 @@ function sendToSidebar(channel, payload) {
 
 function themeBg() {
   return config.theme === 'light' ? '#f2f3f6' : '#17181c';
-}
-
-function markGpuHealthy() {
-  if (gpuMarked) return;
-  gpuMarked = true;
-  setTimeout(() => {
-    try {
-      fs.mkdirSync(path.dirname(gpuMarkerPath), { recursive: true });
-      fs.writeFileSync(gpuMarkerPath, String(Date.now()));
-    } catch {
-    }
-  }, 4000);
 }
 
 function applyWebTheme() {
@@ -565,7 +502,6 @@ function createMainWindow() {
   });
   sidebarView.webContents.once('did-finish-load', () => {
     if (!startHidden) mainWindow.show();
-    markGpuHealthy();
   });
   sidebarView.webContents.once('did-finish-load', () => {
     sendToSidebar('init', {
@@ -969,6 +905,15 @@ function rebuildTrayMenu() {
         }
       }
     },
+    {
+      label: forceSoftware ? '恢复硬件加速（重启）' : '兼容渲染模式（黑屏修复，重启）',
+      click: () => {
+        writeRenderPref({ software: !forceSoftware });
+        app.relaunch();
+        quitting = true;
+        app.quit();
+      }
+    },
     { type: 'separator' },
     {
       label: '重启',
@@ -1038,8 +983,6 @@ function setupIpc() {
   });
   ipcMain.on('window:close', () => mainWindow && mainWindow.close());
   ipcMain.on('panel:open', (_event, mode) => openPanel(mode));
-  ipcMain.on('drag-strip:start', (_event, { screenX, screenY }) => startStripDrag(screenX, screenY));
-  ipcMain.on('drag-strip:end', () => endStripDrag());
   ipcMain.handle('settings:set-drag-strip', (_event, enabled) => {
     config.webDragStrip = Boolean(enabled);
     configStore.save(config);
@@ -1053,6 +996,16 @@ function setupIpc() {
     sync.schedulePush();
     applyDragStripToAll();
     return { ok: true, webDragStripHeight: config.webDragStripHeight };
+  });
+  ipcMain.handle('settings:set-gpu', (_event, enabled) => {
+    const software = !enabled;
+    writeRenderPref({ software });
+    forceSoftware = software;
+    rebuildTrayMenu();
+    app.relaunch();
+    quitting = true;
+    setTimeout(() => app.quit(), 200);
+    return { ok: true, gpuEnabled: enabled };
   });
   ipcMain.handle('downloads:list', () => downloads.list());
   ipcMain.handle('downloads:pause', (_event, id) => { downloads.pause(id); return { ok: true }; });
@@ -1135,7 +1088,8 @@ function setupIpc() {
     theme: config.theme || 'dark',
     webTheme: config.webTheme || 'system',
     webDragStrip: Boolean(config.webDragStrip),
-    webDragStripHeight: Number(config.webDragStripHeight) || 16
+    webDragStripHeight: Number(config.webDragStripHeight) || 16,
+    gpuEnabled: !forceSoftware
   }));
   ipcMain.handle('settings:set-titlebar-mode', (_event, mode) => setTitlebarMode(mode));
   ipcMain.handle('settings:set-theme', (_event, theme) => {

@@ -216,6 +216,7 @@ window.chatbox.onPanelShow(async (data) => {
     document.getElementById('drag-strip-height').value = stripHeight;
     document.getElementById('drag-strip-height-value').textContent = `${stripHeight}px`;
     document.getElementById('drag-strip-height-row').classList.toggle('hidden', !settings.webDragStrip);
+    document.getElementById('gpu-accel').checked = settings.gpuEnabled !== false;
     document.getElementById('home-url').value = settings.homeUrl || '';
     document.getElementById('version-text').textContent = `v${settings.version}`;
   });
@@ -265,6 +266,10 @@ document.getElementById('drag-strip-height').addEventListener('input', (event) =
 });
 document.getElementById('drag-strip-height').addEventListener('change', async (event) => {
   await window.chatbox.setDragStripHeight(Number(event.target.value));
+});
+
+document.getElementById('gpu-accel').addEventListener('change', async (event) => {
+  await window.chatbox.setGpu(event.target.checked);
 });
 
 function formatBytes(bytes) {
