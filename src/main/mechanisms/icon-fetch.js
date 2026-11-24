@@ -12,33 +12,32 @@ function lockSvgLight(dataUrl) {
   }
 }
 
-async function fetchIconInPage(view, iconUrl) {
-  return view.webContents.executeJavaScript(`(async () => {
-    try {
-      const response = await fetch(${JSON.stringify(iconUrl)}, { credentials: 'omit' });
-      if (!response.ok) return { error: 'http-' + response.status };
-      const type = response.headers.get('content-type') || '';
-      const buffer = await response.arrayBuffer();
-      if (buffer.byteLength === 0 || buffer.byteLength > 512 * 1024) return { error: 'size-' + buffer.byteLength };
-      const bytes = new Uint8Array(buffer);
-      const isPng = bytes[0] === 0x89 && bytes[1] === 0x50;
-      const isGif = bytes[0] === 0x47 && bytes[1] === 0x49;
-      const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8;
-      const isWebp = bytes[8] === 0x57 && bytes[9] === 0x45;
-      const isIco = bytes[0] === 0x00 && bytes[1] === 0x00 && bytes[2] === 0x01;
-      const head = new TextDecoder().decode(bytes.subarray(0, 256)).trim().toLowerCase();
-      const isSvg = head.startsWith('<svg') || head.startsWith('<?xml');
-      if (!type.startsWith('image/') && !isPng && !isGif && !isJpeg && !isWebp && !isIco && !isSvg) {
-        return { error: 'not-image type=' + type };
-      }
-      const mime = type.startsWith('image/') ? type.split(';')[0].trim()
-        : isSvg ? 'image/svg+xml' : isIco ? 'image/x-icon' : isPng ? 'image/png'
-        : isGif ? 'image/gif' : isJpeg ? 'image/jpeg' : 'image/webp';
-      let binary = '';
-      for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
-      return { data: 'data:' + mime + ';base64,' + btoa(binary) };
-    } catch (error) { return { error: String(error).slice(0, 80) }; }
-  })()`);
+async function fetchIconRaw(view, iconUrl) {
+  // 在主进程用站点会话发起请求:不受页面 CORS 限制(google favicon 服务等跨域候选才能成功),
+  // 并自动走该会话的代理设置;不依赖页面是否渲染完成。
+  try {
+    const response = await view.webContents.session.fetch(iconUrl, { credentials: 'omit' });
+    if (!response.ok) return { error: 'http-' + response.status };
+    const type = response.headers.get('content-type') || '';
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length === 0 || buffer.length > 512 * 1024) return { error: 'size-' + buffer.length };
+    const isPng = buffer[0] === 0x89 && buffer[1] === 0x50;
+    const isGif = buffer[0] === 0x47 && buffer[1] === 0x49;
+    const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8;
+    const isWebp = buffer[8] === 0x57 && buffer[9] === 0x45;
+    const isIco = buffer[0] === 0x00 && buffer[1] === 0x00 && buffer[2] === 0x01;
+    const head = buffer.subarray(0, 256).toString('utf8').trim().toLowerCase();
+    const isSvg = head.startsWith('<svg') || head.startsWith('<?xml');
+    if (!type.startsWith('image/') && !isPng && !isGif && !isJpeg && !isWebp && !isIco && !isSvg) {
+      return { error: 'not-image type=' + type };
+    }
+    const mime = type.startsWith('image/') ? type.split(';')[0].trim()
+      : isSvg ? 'image/svg+xml' : isIco ? 'image/x-icon' : isPng ? 'image/png'
+      : isGif ? 'image/gif' : isJpeg ? 'image/jpeg' : 'image/webp';
+    return { data: 'data:' + mime + ';base64,' + buffer.toString('base64') };
+  } catch (error) {
+    return { error: String(error).slice(0, 80) };
+  }
 }
 
 async function run({ site, getView }) {
@@ -69,7 +68,7 @@ async function run({ site, getView }) {
   candidates.push(`https://www.google.com/s2/favicons?domain=${new URL(site.url).hostname}&sz=64`);
   for (const iconUrl of candidates) {
     try {
-      const result = await fetchIconInPage(view, iconUrl);
+      const result = await fetchIconRaw(view, iconUrl);
       if (result && result.data) return { ok: true, icon: lockSvgLight(result.data) };
     } catch {
     }
