@@ -19,13 +19,13 @@ const PROFILE_DEFAULTS = {
   proxyUser: '',
   proxyPassEnc: '',
   autoLaunch: false,
-  switcherHotkey: 'Alt+Space',
-  showAppHotkey: 'CommandOrControl+Shift+A',
+  switcherHotkey: '',
+  showAppHotkey: '',
   siteHotkeys: {
-    chatgpt: 'CommandOrControl+Alt+1',
-    gemini: 'CommandOrControl+Alt+2',
-    qwen: 'CommandOrControl+Alt+3',
-    deepseek: 'CommandOrControl+Alt+4'
+    chatgpt: '',
+    gemini: '',
+    qwen: '',
+    deepseek: ''
   }
 };
 

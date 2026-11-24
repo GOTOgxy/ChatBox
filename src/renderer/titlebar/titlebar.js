@@ -3,9 +3,6 @@ let currentSite = null;
 
 window.chatbox.onTitlebarShow((data) => {
   currentSite = data.site;
-  const isMac = data.platform === 'darwin';
-  document.getElementById('win-left').style.display = isMac ? 'flex' : 'none';
-  document.getElementById('win-right').style.display = isMac ? 'none' : 'flex';
   document.getElementById('bar').classList.toggle('docked', data.mode === 'docked');
   applyTheme(data.theme);
   urlInput.value = data.url || '';
@@ -35,7 +32,7 @@ document.getElementById('nav-forward').addEventListener('click', () => window.ch
 document.getElementById('nav-reload').addEventListener('click', () => window.chatbox.reload());
 document.getElementById('nav-home').addEventListener('click', () => window.chatbox.goHome());
 
-for (const suffix of ['l', 'r']) {
+for (const suffix of ['r']) {
   document.getElementById(`win-min-${suffix}`).addEventListener('click', () => window.chatbox.minimize());
   document.getElementById(`win-max-${suffix}`).addEventListener('click', () => window.chatbox.toggleMaximize());
   document.getElementById(`win-close-${suffix}`).addEventListener('click', () => window.chatbox.closeWindow());

@@ -178,7 +178,7 @@ fs.mkdirSync(assetsDir, { recursive: true });
 function writeTheme(name, outDir, suffix) {
   activeTheme = THEMES[name];
   fs.mkdirSync(outDir, { recursive: true });
-  fs.writeFileSync(path.join(outDir, `icon${suffix}.png`), makePng(256, appIconPixel));
+  fs.writeFileSync(path.join(outDir, `icon${suffix}.png`), makePng(1024, appIconPixel));
   fs.writeFileSync(path.join(outDir, `tray${suffix}.png`), makePng(32, trayIconPixel));
   fs.writeFileSync(path.join(outDir, `tray${suffix}@2x.png`), makePng(64, trayIconPixel));
   const icoSizes = [16, 24, 32, 48, 64, 128, 256];

@@ -35,19 +35,25 @@ CRX 签名私钥 `assets/extension-private.pem` 不入库。没有私钥的开�
 
 ## 发布
 
-Windows 发布流程:先 `npm run dist:win` 生成 `release/win-unpacked`,再用 Inno Setup 编译 `installer/chatbox.iss` 得到 `release/ChatBox-Setup-x.y.z.exe`,最后执行 `npm run release -- --notes "更新说明"`。发布脚本会自动打包 crx、生成 checksums(覆盖 exe 与 crx),并通过 gh 一并上传 exe + crx + checksums 到 GitHub Release。每个 Release 必须包含 crx。
+Windows 发布流程:先 `npm run dist:win` 生成 `release/win-unpacked`,再用 Inno Setup 编译 `installer/chatbox.iss` 得到 `release/ChatBox-Setup-x.y.z.exe`,最后执行 `npm run release -- --notes "更新说明"`。
+
+macOS 发布流程:在 Mac 上 `npm run dist:mac`(或只构建本机架构 `npx electron-builder --mac dmg --arm64`),再执行 `npm run release -- --notes "更新说明"`。
+
+发布脚本会自动打包 crx、生成 checksums,并通过 gh 上传到 GitHub Release:**Release 不存在则创建,已存在则追加上传**(`--clobber`),并合并远端 checksums 保留另一端条目。因此两端发同一个版本时:一端先创建 Release,另一端拉取最新代码、构建后直接 `npm run release` 即追加到同一 Release,无需手动操作。每个 Release 必须包含 crx。
+
+自动更新:应用内「检查更新」读取最新 Release。Windows 下载 exe 校验 sha256 后静默安装并重启;macOS 下载本机架构的 dmg,校验后挂载、替换应用 bundle 并自动重启(需应用位于可写目录如 /Applications,从 dmg 直接运行时回退为打开下载页)。
 
 ## 快捷键
 
-全部全局快捷键均可在侧边栏底部「齿轮 → 设置」中自定义:点击输入框后按下组合键即录制生效,Backspace/Delete 清除,注册失败(被占用)自动还原。
+全部全局快捷键均可在侧边栏底部「齿轮 → 设置」中自定义:点击输入框后按下组合键即录制生效,Backspace/Delete 清除,注册失败(被占用)自动还原。**新安装默认不设置任何快捷键**,避免占用系统组合键;macOS 上 Cmd 与 Ctrl 分别录制为 Command / Control。
 
-| 默认快捷键 | 功能 |
+| 快捷键示例(默认均未设置) | 功能 |
 |---|---|
 | `Alt+Space` | 弹出快捷切换面板,←→/数字选择,Enter 打开,Esc 关闭 |
-| `Ctrl+Shift+A` | 唤起主窗口 |
+| `Ctrl+Shift+A`(mac 建议 `Cmd+Shift+A`) | 唤起主窗口 |
 | `Ctrl+Alt+1~4` | 直达对应站点(每个站点独立可改) |
 
-窗口为无边框设计。点击左侧栏顶部的小 Logo,弹出悬浮标题栏:含地址栏(Enter 前往)、后退/前进/刷新/回首页,以及窗口控制——Windows/Linux 控制在右,macOS 控制在左;标题栏空白处可拖动窗口,失焦自动收起。侧边栏底部依次为「导入(链条图标)」和「设置(齿轮,最底)」。侧边栏右键站点图标 = 在系统浏览器打开;关窗隐藏到托盘,托盘菜单退出。
+窗口为无边框设计。点击左侧栏顶部的小 Logo,弹出悬浮标题栏:含地址栏(Enter 前往)、后退/前进/刷新/回首页,以及窗口控制(最小化/最大化/关闭)——**全平台统一在右侧**;标题栏空白处可拖动窗口,失焦自动收起。侧边栏底部依次为「导入(链条图标)」和「设置(齿轮,最底)」。侧边栏右键站点图标 = 在系统浏览器打开;关窗隐藏到托盘,托盘菜单退出。
 
 ## 导入浏览器登录态
 

@@ -12,7 +12,13 @@ function nearWhite(color) {
 }
 
 function displayAccel(accelerator) {
-  return (accelerator || '未设置').replace(/CommandOrControl/g, 'Ctrl');
+  if (!accelerator) return '未设置';
+  const isMac = /mac/i.test(navigator.platform);
+  return accelerator
+    .replace(/CommandOrControl/g, isMac ? 'Cmd' : 'Ctrl')
+    .replace(/Command/g, 'Cmd')
+    .replace(/Control/g, 'Ctrl')
+    .replace(/Super/g, isMac ? 'Cmd' : 'Win');
 }
 
 function render(list, activeId) {

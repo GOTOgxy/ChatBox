@@ -164,22 +164,39 @@ async function configure({ serverUrl, username, password, remoteDir }) {
   saveLocalConfig(cfg);
   onStatus(cfg.sync);
   if (!sync.serverUrl || !sync.username || !sync.passwordEnc) {
-    return { ok: false, error: '服务器、账号与应用密码需填写完整' };
+    return { ok: true, test: { ok: false, error: '服务器、账号与应用密码填写完整后才能测试连接' } };
   }
-  const probe = await request('PROPFIND', baseUrl().replace(/\/$/, ''));
-  if (probe.status === 401 || probe.status === 403) {
-    return { ok: false, error: `认证失败 (HTTP ${probe.status})` };
+  try {
+    const probe = await request('PROPFIND', baseUrl().replace(/\/$/, ''));
+    if (probe.status === 401 || probe.status === 403) {
+      return { ok: true, test: { ok: false, error: `认证失败 (HTTP ${probe.status})` } };
+    }
+    if (!probe.ok && probe.status !== 404 && probe.status !== 405) {
+      return { ok: true, test: { ok: false, error: `HTTP ${probe.status}` } };
+    }
+    return { ok: true, test: { ok: true } };
+  } catch (error) {
+    return { ok: true, test: { ok: false, error: String(error.message || error).slice(0, 120) } };
   }
-  if (!probe.ok && probe.status !== 404 && probe.status !== 405) {
-    return { ok: false, error: `HTTP ${probe.status}` };
-  }
-  return { ok: true };
 }
 
 async function setEnabled(enabled) {
   const cfg = getLocalConfig();
-  if (enabled && (!cfg.sync.serverUrl || !cfg.sync.username || !cfg.sync.passwordEnc)) {
-    return { ok: false, error: '请先填写服务器、账号与应用密码并保存' };
+  if (enabled) {
+    if (!cfg.sync.serverUrl || !cfg.sync.username || !cfg.sync.passwordEnc) {
+      return { ok: false, error: '启用同步前请先填写服务器、账号与应用密码并保存' };
+    }
+    try {
+      const probe = await request('PROPFIND', baseUrl().replace(/\/$/, ''));
+      if (probe.status === 401 || probe.status === 403) {
+        return { ok: false, error: `连接测试失败:认证失败 (HTTP ${probe.status}),请修改配置后重试` };
+      }
+      if (!probe.ok && probe.status !== 404 && probe.status !== 405) {
+        return { ok: false, error: `连接测试失败:HTTP ${probe.status},请修改配置后重试` };
+      }
+    } catch (error) {
+      return { ok: false, error: `连接测试失败:${String(error.message || error).slice(0, 80)},请修改配置后重试` };
+    }
   }
   cfg.sync.enabled = Boolean(enabled);
   if (!enabled) cfg.sync.autoSync = false;

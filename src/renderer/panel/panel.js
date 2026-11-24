@@ -5,6 +5,8 @@ let pendingIcon = null;
 let addPendingIcon = null;
 let addHotkeyValue = '';
 
+const IS_MAC = /mac/i.test(navigator.platform);
+
 const PRESET_COLORS = [
   '#ffffff', '#ff5fa2', '#a855f7', '#4d6bfe', '#10a37f', '#f5a623'
 ];
@@ -78,7 +80,12 @@ const importStatus = document.getElementById('import-status');
 const siteHotkeysEl = document.getElementById('site-hotkeys');
 
 function displayAccel(accelerator) {
-  return (accelerator || '未设置').replace(/CommandOrControl/g, 'Ctrl');
+  if (!accelerator) return '未设置';
+  return accelerator
+    .replace(/CommandOrControl/g, IS_MAC ? 'Cmd' : 'Ctrl')
+    .replace(/Command/g, 'Cmd')
+    .replace(/Control/g, 'Ctrl')
+    .replace(/Super/g, IS_MAC ? 'Cmd' : 'Win');
 }
 
 function buildSiteHotkeyRows() {
@@ -102,22 +109,33 @@ function fillHotkeyInputs() {
   });
 }
 
+const PUNCT_CODE_MAP = {
+  Minus: '-', Equal: '=', Comma: ',', Period: '.', Slash: '/',
+  Semicolon: ';', Quote: "'", BracketLeft: '[', BracketRight: ']',
+  Backslash: '\\', Backquote: '`', IntlBackslash: '\\'
+};
+
 function recordAccelerator(event) {
   const modifiers = [];
-  if (event.ctrlKey) modifiers.push('CommandOrControl');
+  if (IS_MAC) {
+    if (event.metaKey) modifiers.push('Command');
+    if (event.ctrlKey) modifiers.push('Control');
+  } else {
+    if (event.ctrlKey) modifiers.push('CommandOrControl');
+    if (event.metaKey) modifiers.push('Super');
+  }
   if (event.altKey) modifiers.push('Alt');
   if (event.shiftKey) modifiers.push('Shift');
-  if (event.metaKey && !event.ctrlKey) modifiers.push('CommandOrControl');
-  const key = event.key;
-  if (['Control', 'Alt', 'Shift', 'Meta'].includes(key)) return null;
   if (modifiers.length === 0) return null;
+  const code = event.code || '';
   let main = null;
-  if (/^[a-zA-Z]$/.test(key)) main = key.toUpperCase();
-  else if (/^[0-9]$/.test(key)) main = key;
-  else if (/^F([1-9]|1[0-9]|2[0-4])$/.test(key)) main = key;
-  else if (key === ' ') main = 'Space';
-  else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown', 'Insert', 'Delete'].includes(key)) main = key;
-  else if (key.length === 1 && /[^\w\s]/.test(key)) main = key;
+  if (/^Key[A-Z]$/.test(code)) main = code.slice(3);
+  else if (/^Digit[0-9]$/.test(code)) main = code.slice(5);
+  else if (/^Numpad[0-9]$/.test(code)) main = `num${code.slice(6)}`;
+  else if (/^F([1-9]|1[0-9]|2[0-4])$/.test(code)) main = code;
+  else if (code === 'Space') main = 'Space';
+  else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown', 'Insert', 'Delete'].includes(code)) main = code;
+  else if (PUNCT_CODE_MAP[code]) main = PUNCT_CODE_MAP[code];
   if (!main) return null;
   return [...modifiers, main].join('+');
 }
@@ -138,14 +156,14 @@ function bindHotkeyInputs() {
     input.addEventListener('keydown', async (event) => {
       event.preventDefault();
       event.stopPropagation();
-      if (event.key === 'Escape') {
+      if (event.code === 'Escape' || event.key === 'Escape') {
         input.value = input.dataset.original;
         input.blur();
         return;
       }
       const kind = input.dataset.kind;
       const id = input.dataset.id || null;
-      if (event.key === 'Backspace' || event.key === 'Delete') {
+      if (event.code === 'Backspace' || event.code === 'Delete') {
         if (kind === 'new-site') {
           addHotkeyValue = '';
           input.value = displayAccel('');
@@ -676,14 +694,11 @@ document.getElementById('auto-launch').addEventListener('change', async (event) 
 
 document.getElementById('open-user-data').addEventListener('click', () => window.chatbox.openUserData());
 
-function renderSyncStatus(status) {
+function renderSyncState(status) {
   document.getElementById('sync-enabled').checked = Boolean(status.enabled);
   const autoCheckbox = document.getElementById('sync-auto');
   autoCheckbox.checked = Boolean(status.autoSync);
   autoCheckbox.disabled = !status.enabled;
-  document.getElementById('sync-server').value = status.serverUrl || '';
-  document.getElementById('sync-user').value = status.username || '';
-  document.getElementById('sync-dir').value = status.remoteDir || '/ChatBox/';
   document.getElementById('sync-upload').disabled = !status.enabled;
   document.getElementById('sync-pull').disabled = !status.enabled;
   const statusEl = document.getElementById('sync-status');
@@ -699,31 +714,48 @@ function renderSyncStatus(status) {
   }
 }
 
+function fillSyncFields(status) {
+  const server = document.getElementById('sync-server');
+  const user = document.getElementById('sync-user');
+  const dir = document.getElementById('sync-dir');
+  if (document.activeElement !== server) server.value = status.serverUrl || '';
+  if (document.activeElement !== user) user.value = status.username || '';
+  if (document.activeElement !== dir) dir.value = status.remoteDir || '/ChatBox/';
+  document.getElementById('sync-pass').placeholder = status.hasPassword ? '已保存,留空则不修改' : '必填';
+}
+
+function renderSyncStatus(status) {
+  renderSyncState(status);
+  fillSyncFields(status);
+}
+
 document.getElementById('sync-save').addEventListener('click', async () => {
   const statusEl = document.getElementById('sync-status');
   statusEl.className = 'status';
-  statusEl.textContent = '保存并测试连接中…';
+  statusEl.textContent = '保存中…';
   const result = await window.chatbox.syncConfigure({
     serverUrl: document.getElementById('sync-server').value,
     username: document.getElementById('sync-user').value,
     password: document.getElementById('sync-pass').value,
     remoteDir: document.getElementById('sync-dir').value
   });
-  document.getElementById('sync-pass').value = '';
-  renderSyncStatus(result.status);
-  if (!result.ok) {
-    statusEl.className = 'status error';
-    statusEl.textContent = `连接失败: ${result.error}(配置已保存,可修改后重试)`;
-  } else {
+  renderSyncState(result.status);
+  const passInput = document.getElementById('sync-pass');
+  if (result.test && result.test.ok) {
+    passInput.value = '';
+    passInput.placeholder = '已保存,留空则不修改';
     statusEl.className = 'status';
-    statusEl.textContent = '连接成功。可手动上传 / 拉取,或按需开启自动同步。';
+    statusEl.textContent = '已保存,连接成功。可手动上传 / 拉取,或按需开启自动同步。';
+  } else {
+    statusEl.className = 'status error';
+    statusEl.textContent = `已保存,但连接测试未通过: ${(result.test && result.test.error) || '未知错误'}。修改后重试即可,已填内容不会丢失。`;
   }
 });
 
 document.getElementById('sync-enabled').addEventListener('change', async (event) => {
   const wanted = event.target.checked;
   const result = await window.chatbox.syncSetEnabled(wanted);
-  renderSyncStatus(result.status);
+  renderSyncState(result.status);
   if (!result.ok) {
     const statusEl = document.getElementById('sync-status');
     statusEl.className = 'status error';
@@ -746,7 +778,7 @@ document.getElementById('sync-auto').addEventListener('change', async (event) =>
     }
   }
   const result = await window.chatbox.syncSetAuto(wanted);
-  renderSyncStatus(result.status);
+  renderSyncState(result.status);
   if (!result.ok) {
     const statusEl = document.getElementById('sync-status');
     statusEl.className = 'status error';
@@ -766,7 +798,7 @@ document.getElementById('sync-upload').addEventListener('click', async () => {
   statusEl.className = 'status';
   statusEl.textContent = '上传中…';
   const result = await window.chatbox.syncUpload();
-  renderSyncStatus(result.status);
+  renderSyncState(result.status);
   if (result.ok) {
     statusEl.className = 'status';
     statusEl.textContent = '已上传本机配置到云端。';
@@ -778,7 +810,7 @@ document.getElementById('sync-pull').addEventListener('click', async () => {
   statusEl.className = 'status';
   statusEl.textContent = '拉取中…';
   const result = await window.chatbox.syncPull();
-  renderSyncStatus(result.status);
+  renderSyncState(result.status);
   if (result.ok) {
     statusEl.className = 'status';
     statusEl.textContent = '已从云端拉取(仅当远端更新时覆盖,登录态不受影响)。';

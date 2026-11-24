@@ -3,7 +3,7 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 const { app, net, shell } = require('electron');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 const REPO = 'GOTOgxy/ChatBox';
 const RELEASES_PAGE = `https://github.com/${REPO}/releases/latest`;
@@ -29,7 +29,10 @@ async function check() {
   if (!response.ok) return { ok: false, error: `HTTP ${response.status}` };
   const data = await response.json();
   const latest = String(data.tag_name || '').replace(/^v/, '');
-  const asset = (data.assets || []).find((item) => /^ChatBox-Setup-.*\.exe$/i.test(item.name));
+  const asset = (data.assets || []).find((item) => {
+    if (process.platform === 'darwin') return new RegExp(`^ChatBox-.*-${process.arch}\\.dmg$`, 'i').test(item.name);
+    return /^ChatBox-Setup-.*\.exe$/i.test(item.name);
+  });
   const checksums = (data.assets || []).find((item) => /checksums/i.test(item.name));
   return {
     ok: true,
@@ -115,6 +118,7 @@ async function fetchExpectedSha256(checksumsUrl, assetName) {
 }
 
 async function downloadAndInstall(info, { relaunchHidden }) {
+  if (process.platform === 'darwin') return installMac(info, { relaunchHidden });
   if (process.platform !== 'win32') {
     shell.openExternal(info.pageUrl || RELEASES_PAGE);
     return { ok: true, state: 'opened-browser' };
@@ -151,6 +155,94 @@ async function downloadAndInstall(info, { relaunchHidden }) {
     return { ok: false, error: String(error.message || error), state: 'spawn-failed', pageUrl: info.pageUrl || RELEASES_PAGE };
   }
   return { ok: true, state: 'installer-launched' };
+}
+
+function runTool(command, args) {
+  const result = spawnSync(command, args, { encoding: 'utf8' });
+  if (result.status !== 0) {
+    throw new Error(`${command} failed: ${String(result.stderr || result.stdout || '').trim().slice(0, 200)}`);
+  }
+  return result.stdout;
+}
+
+const MAC_SWAP_SCRIPT = `#!/bin/bash
+PID="$1"; OLD="$2"; NEW="$3"; STAGE="$4"; DMG="$5"; HIDDEN="$6"
+for _ in $(seq 1 100); do
+  kill -0 "$PID" 2>/dev/null || break
+  sleep 0.3
+done
+if kill -0 "$PID" 2>/dev/null; then
+  kill "$PID" 2>/dev/null
+  sleep 3
+  kill -9 "$PID" 2>/dev/null
+  sleep 1
+fi
+if ! mv "$OLD" "$STAGE/old.app"; then
+  rm -rf "$STAGE"
+  exit 1
+fi
+if ! mv "$NEW" "$OLD"; then
+  mv "$STAGE/old.app" "$OLD"
+  rm -rf "$STAGE"
+  exit 1
+fi
+xattr -dr com.apple.quarantine "$OLD" 2>/dev/null
+rm -f "$DMG"
+if [ "$HIDDEN" = "1" ]; then
+  open "$OLD" --args --hidden
+else
+  open "$OLD"
+fi
+rm -rf "$STAGE"
+`;
+
+async function installMac(info, { relaunchHidden }) {
+  if (!info.downloadUrl) {
+    shell.openExternal(info.pageUrl || RELEASES_PAGE);
+    return { ok: false, error: 'no-asset', state: 'opened-browser' };
+  }
+  onProgress({ phase: 'download', percent: 0 });
+  const dest = path.join(os.tmpdir(), info.assetName || `ChatBox-${info.latest || 'update'}-${process.arch}.dmg`);
+  const expected = await fetchExpectedSha256(info.checksumsUrl, info.assetName);
+  const result = await downloadToFile(info.downloadUrl, dest, expected);
+  if (!result.ok) {
+    updateLog(`download failed: ${result.error}`);
+    return { ok: false, error: result.error, state: 'download-failed', pageUrl: info.pageUrl || RELEASES_PAGE };
+  }
+  updateLog(`download ok: ${dest} sha256=${result.sha256}`);
+  onProgress({ phase: 'installing', percent: 100 });
+  let stage = '';
+  try {
+    const bundle = path.resolve(app.getPath('exe'), '..', '..', '..');
+    if (!bundle.endsWith('.app') || bundle.startsWith('/Volumes/')) {
+      throw new Error('当前运行位置不支持就地更新,请先将应用拖入 Applications');
+    }
+    fs.accessSync(path.dirname(bundle), fs.constants.W_OK);
+    stage = fs.mkdtempSync(path.join(os.tmpdir(), 'chatbox-update-'));
+    const mount = path.join(stage, 'mnt');
+    fs.mkdirSync(mount);
+    runTool('hdiutil', ['attach', dest, '-nobrowse', '-noverify', '-quiet', '-mountpoint', mount]);
+    const newApp = path.join(stage, 'ChatBox.app');
+    try {
+      runTool('ditto', [path.join(mount, 'ChatBox.app'), newApp]);
+    } finally {
+      try { runTool('hdiutil', ['detach', mount, '-quiet']); } catch {}
+    }
+    const script = path.join(stage, 'swap.sh');
+    fs.writeFileSync(script, MAC_SWAP_SCRIPT, { mode: 0o755 });
+    const child = spawn('/bin/bash', [script, String(process.pid), bundle, newApp, stage, dest, relaunchHidden ? '1' : '0'], {
+      detached: true,
+      stdio: 'ignore'
+    });
+    child.unref();
+    updateLog(`mac swap script spawned (detached): ${script} target=${bundle}`);
+    return { ok: true, state: 'installer-launched' };
+  } catch (error) {
+    if (stage) { try { fs.rmSync(stage, { recursive: true, force: true }); } catch {} }
+    updateLog(`mac install failed: ${error.message || error}`);
+    shell.openExternal(info.pageUrl || RELEASES_PAGE);
+    return { ok: false, error: String(error.message || error), state: 'opened-browser', pageUrl: info.pageUrl || RELEASES_PAGE };
+  }
 }
 
 function openReleasesPage() {

@@ -4,3 +4,4 @@ release/
 *.log
 assets/extension-private.pem
 *.crx
+.DS_Store

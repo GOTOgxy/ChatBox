@@ -3,7 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const releaseDir = path.join(__dirname, '..', 'release');
-const files = fs.readdirSync(releaseDir).filter((name) => /^ChatBox-Setup-.*\.exe$/i.test(name) || /\.crx$/i.test(name));
+const files = fs.readdirSync(releaseDir).filter((name) => /^ChatBox-Setup-.*\.exe$/i.test(name) || /\.dmg$/i.test(name) || /\.crx$/i.test(name));
 const lines = files.map((name) => {
   const hash = crypto.createHash('sha256').update(fs.readFileSync(path.join(releaseDir, name))).digest('hex');
   return `${hash}  ${name}`;
