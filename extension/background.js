@@ -95,6 +95,16 @@ async function dumpStorageInTab(tabId) {
   return (injection && injection[0] && injection[0].result) || {};
 }
 
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); }
+    );
+  });
+}
+
 async function collectStorage() {
   const result = {};
   storageStatus = {};
@@ -104,6 +114,8 @@ async function collectStorage() {
   } catch {
     tabs = [];
   }
+  // 按 origin 去重,每个 origin 只采一个标签页。
+  const byOrigin = new Map();
   for (const tab of tabs) {
     if (!tab.url || !/^https?:/.test(tab.url)) continue;
     let origin;
@@ -112,10 +124,12 @@ async function collectStorage() {
     } catch {
       continue;
     }
-    // 采集所有已打开 http(s) 标签页的 localStorage(含自定义站点),应用侧按域名过滤。
-    if (result[origin]) continue;
+    if (!byOrigin.has(origin)) byOrigin.set(origin, tab.id);
+  }
+  // 并行采集 + 单标签页 5s 超时:避免某个卡住的标签页拖垮整次发送(首次冷采集尤其慢)。
+  await Promise.all(Array.from(byOrigin.entries()).map(async ([origin, tabId]) => {
     try {
-      const data = await dumpStorageInTab(tab.id);
+      const data = await withTimeout(dumpStorageInTab(tabId), 5000);
       if (Object.keys(data).length > 0) {
         result[origin] = data;
         storageStatus[origin] = 'tab';
@@ -123,7 +137,7 @@ async function collectStorage() {
     } catch (error) {
       storageStatus[origin] = `tab-error: ${String(error).slice(0, 80)}`;
     }
-  }
+  }));
   return result;
 }
 

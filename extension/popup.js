@@ -9,8 +9,8 @@ function run(type, activeButton) {
   const timeout = setTimeout(() => {
     activeButton.disabled = false;
     status.className = 'error';
-    status.textContent = '超时:扩展后台可能已休眠,请重试。';
-  }, type === 'deep-collect' ? 90000 : 20000);
+    status.textContent = '采集超时,请重试(标签页较多时首次采集可能较慢)。';
+  }, type === 'deep-collect' ? 90000 : 60000);
   chrome.runtime.sendMessage({ type }, (response) => {
     clearTimeout(timeout);
     activeButton.disabled = false;
