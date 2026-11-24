@@ -70,7 +70,29 @@ docs/                      用户与开发文档
 
 ## 构建与发布
 
-### Windows
+### 推荐:GitHub Actions 一键发版(任意一台机器)
+
+仓库配置了 `.github/workflows/release.yml`:推送 `v*` tag 后,云端 Windows + macOS runner **并行构建** exe(Inno Setup)与 arm64 dmg,打包 crx、生成 checksums,自动创建/更新同一个 GitHub Release。不再需要两台机器分别构建。
+
+发版三步(在哪台机器上都行):
+
+```bash
+# 1. 改 package.json 版本号(iss 版本号由 CI 自动注入,无需手改)
+# 2. 提交并推送
+git tag v1.5.x && git push origin main v1.5.x
+```
+
+前提:仓库 secret `EXTENSION_PRIVATE_PEM` 已设置为扩展签名私钥(`assets/extension-private.pem`)的完整内容,CI 用它打包 crx。设置方式:
+
+```bash
+gh secret set EXTENSION_PRIVATE_PEM --repo GOTOgxy/ChatBox < assets/extension-private.pem
+```
+
+也可手动触发:`gh workflow run "Build & Release"`(构建当前 package.json 版本,Release 已存在则追加覆盖)。tag 与 package.json 版本不一致时 CI 会报错拒绝发布。
+
+### 本地构建(备用)
+
+#### Windows
 
 ```powershell
 npm run dist:win        # 出 release/win-unpacked(NSIS 为中间产物)
@@ -79,7 +101,7 @@ npm run dist:win        # 出 release/win-unpacked(NSIS 为中间产物)
 npm run release -- --notes "更新说明"
 ```
 
-### macOS(仅 arm64)
+#### macOS(仅 arm64)
 
 ```bash
 npm run dist:mac        # release/ChatBox-x.y.z-arm64.dmg(必须在 macOS 上构建)
@@ -99,7 +121,7 @@ DMG 无法在 Windows/Linux 交叉构建。产物为 ad-hoc 签名,浏览器下�
 
 ### 版本号清单
 
-发版前确认:`package.json` version、`installer/chatbox.iss` 的 MyAppVersion(Windows)。
+CI 发版只需改 `package.json`(iss 由 CI 注入)。本地构建 Windows 时另需同步 `installer/chatbox.iss` 的 MyAppVersion,或给 ISCC 传 `/DMyAppVersion=x.y.z`。
 
 ## 设计文档
 
