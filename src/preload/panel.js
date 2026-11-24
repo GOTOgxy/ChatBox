@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld('chatbox', {
   registerHost: () => ipcRenderer.invoke('import:register-host'),
   openExtensionsPage: () => ipcRenderer.invoke('import:open-extensions-page'),
   extensionPath: () => ipcRenderer.invoke('import:extension-path'),
-  runImport: (skipGoogle) => ipcRenderer.invoke('import:run', skipGoogle),
+  runImport: () => ipcRenderer.invoke('import:run'),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setTitlebarMode: (mode) => ipcRenderer.invoke('settings:set-titlebar-mode', mode),
   checkUpdate: () => ipcRenderer.invoke('update:check'),

@@ -1094,7 +1094,7 @@ function rebuildTrayMenu() {
   tray.setContextMenu(menu);
 }
 
-async function importCookies(skipGoogle) {
+async function importCookies() {
   const importPath = path.join(app.getPath('userData'), 'cookie-import.json');
   if (!fs.existsSync(importPath)) {
     return { ok: false, reason: 'no-data' };
@@ -1105,17 +1105,9 @@ async function importCookies(skipGoogle) {
   } catch {
     return { ok: false, reason: 'bad-data' };
   }
-  const allSites = enabledSites();
-  const skipped = [];
-  const sites = skipGoogle
-    ? allSites.filter((site) => {
-        if (isGoogleSite(site)) { skipped.push(site.name || site.id); return false; }
-        return true;
-      })
-    : allSites;
   const result = await mechanisms.run('login-import', {
     data,
-    sites,
+    sites: enabledSites(),
     getSession: siteSession,
     getView: (id) => siteViews.get(id),
     ensureView: (site) => {
@@ -1137,7 +1129,6 @@ async function importCookies(skipGoogle) {
     fs.unlinkSync(importPath);
   } catch {
   }
-  result.skipped = skipped;
   return result;
 }
 
@@ -1397,7 +1388,7 @@ function setupIpc() {
     sync.schedulePush();
     return { ok: true, hotkeys: currentHotkeys() };
   });
-  ipcMain.handle('import:run', (_event, skipGoogle) => importCookies(skipGoogle));
+  ipcMain.handle('import:run', importCookies);
   ipcMain.handle('mechanisms:list', () => mechanisms.list());
   ipcMain.handle('import:register-host', () => {
     try {

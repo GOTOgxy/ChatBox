@@ -322,15 +322,6 @@ html, body {
   height: 14px;
 }
 
-.import-skip-row {
-  margin: 10px 0 4px;
-  flex: none;
-  align-items: flex-start;
-}
-.import-skip-row input {
-  margin-top: 2px;
-}
-
 .drag-height-control {
   display: flex;
   align-items: center;
