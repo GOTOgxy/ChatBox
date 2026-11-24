@@ -1,19 +1,25 @@
 !macro customInit
   ${If} ${Silent}
-    nsExec::Exec 'taskkill /IM "${APP_EXECUTABLE_FILENAME}"'
+    nsExec::Exec 'taskkill /F /T /IM "${APP_EXECUTABLE_FILENAME}"'
     Sleep 800
   ${Else}
     FindWindow $0 "" "${PRODUCT_NAME}"
     ${If} $0 != 0
       MessageBox MB_OKCANCEL|MB_ICONINFORMATION "检测到 ${PRODUCT_NAME} 正在运行,点击「确定」将自动关闭并继续安装。" IDOK closeApp IDCANCEL abortInstall
       closeApp:
-        nsExec::Exec 'taskkill /IM "${APP_EXECUTABLE_FILENAME}"'
+        nsExec::Exec 'taskkill /F /T /IM "${APP_EXECUTABLE_FILENAME}"'
         Sleep 800
       Goto done
       abortInstall:
         Abort
       done:
     ${EndIf}
+  ${EndIf}
+!macroend
+
+!macro customInstall
+  ${If} ${Silent}
+    ${StdUtils.ExecShellAsUser} $0 "$launchLink" "open" "--updated"
   ${EndIf}
 !macroend
 

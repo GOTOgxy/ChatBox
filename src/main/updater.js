@@ -38,14 +38,25 @@ async function check() {
 }
 
 async function downloadToFile(url, dest, expectedSha256) {
+  let fullRestart = false;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      const existing = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
+      let existing = 0;
+      if (!fullRestart && fs.existsSync(dest)) {
+        const stat = fs.statSync(dest);
+        if (stat.size > 0) existing = stat.size;
+      }
+      if (existing === 0 && fs.existsSync(dest)) fs.unlinkSync(dest);
       const response = await net.fetch(url, {
         headers: existing > 0 ? { Range: `bytes=${existing}-` } : {}
       });
+      if (response.status === 416) {
+        fullRestart = true;
+        try { fs.unlinkSync(dest); } catch {}
+        throw new Error('HTTP 416 (range reset)');
+      }
       if (!response.ok && response.status !== 206) throw new Error(`HTTP ${response.status}`);
-      const append = response.status === 206;
+      const append = response.status === 206 && existing > 0;
       const out = fs.createWriteStream(dest, { flags: append ? 'a' : 'w' });
       const hash = crypto.createHash('sha256');
       if (append) {
@@ -55,7 +66,9 @@ async function downloadToFile(url, dest, expectedSha256) {
       let received = append ? existing : 0;
       const total = Number(response.headers.get('content-length') || 0) + received;
       for await (const chunk of response.body) {
-        out.write(chunk);
+        if (!out.write(chunk)) {
+          await new Promise((resolve) => out.once('drain', resolve));
+        }
         hash.update(chunk);
         received += chunk.length;
         if (total > 0) onProgress({ phase: 'download', percent: Math.round((received / total) * 100) });
@@ -66,7 +79,8 @@ async function downloadToFile(url, dest, expectedSha256) {
       });
       const digest = hash.digest('hex');
       if (expectedSha256 && digest !== expectedSha256.toLowerCase()) {
-        fs.unlinkSync(dest);
+        try { fs.unlinkSync(dest); } catch {}
+        fullRestart = true;
         throw new Error('checksum-mismatch');
       }
       return { ok: true, path: dest, sha256: digest };
