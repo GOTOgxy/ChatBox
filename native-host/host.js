@@ -28,6 +28,18 @@ function send(message) {
 }
 
 function handle(message) {
+  if (message && message.type === 'query-sites') {
+    try {
+      const raw = JSON.parse(fs.readFileSync(path.join(appDataDir(), 'sites.json'), 'utf8'));
+      const urls = (Array.isArray(raw) ? raw : [])
+        .filter((site) => site && site.enabled !== false && /^https?:\/\//i.test(site.url || ''))
+        .map((site) => site.url);
+      send({ ok: true, urls });
+    } catch (error) {
+      send({ ok: true, urls: [] });
+    }
+    return;
+  }
   if (!message || !Array.isArray(message.cookies)) {
     send({ ok: true, ignored: true });
     return;

@@ -1,7 +1,7 @@
 const HOST_NAME = 'com.chatai.cookie_import';
 let storageStatus = {};
 
-async function collectAndSend() {
+async function buildCookiePayload() {
   // 采集全部 cookie(含自定义站点),应用侧按各站点域名过滤注入。
   let everyCookie = [];
   try {
@@ -52,7 +52,20 @@ async function collectAndSend() {
   };
   payload.storage = await collectStorage();
   payload.storageStatus = storageStatus;
-  return sendPayload(payload);
+  return payload;
+}
+
+async function collectAndSend() {
+  return sendPayload(await buildCookiePayload());
+}
+
+function querySiteUrls() {
+  return new Promise((resolve) => {
+    chrome.runtime.sendNativeMessage(HOST_NAME, { type: 'query-sites' }, (response) => {
+      if (chrome.runtime.lastError || !response || !Array.isArray(response.urls)) resolve([]);
+      else resolve(response.urls);
+    });
+  });
 }
 
 function sendPayload(payload) {
@@ -66,14 +79,6 @@ function sendPayload(payload) {
     });
   });
 }
-
-const STORAGE_ORIGINS = [
-  'https://chatgpt.com',
-  'https://gemini.google.com',
-  'https://www.qianwen.com',
-  'https://www.kimi.com',
-  'https://chat.deepseek.com'
-];
 
 async function dumpStorageInTab(tabId) {
   const injection = await chrome.scripting.executeScript({
@@ -123,25 +128,14 @@ async function collectStorage() {
 }
 
 async function deepCollectAndSend() {
-  let totalInStore = -1;
-  let storeHosts = [];
-  try {
-    const everyCookie = await chrome.cookies.getAll({});
-    totalInStore = everyCookie.length;
-    storeHosts = Array.from(new Set(everyCookie.map((cookie) => cookie.domain.replace(/^\./, '')))).sort();
-  } catch {
-  }
-  const payload = {
-    type: 'cookie-import',
-    cookies: [],
-    userAgent: navigator.userAgent,
-    sentAt: Date.now(),
-    storage: {},
-    storageStatus: {},
-    deep: true,
-    diag: { totalInStore, storeHosts }
-  };
-  await Promise.all(STORAGE_ORIGINS.map((origin) => collectOneOrigin(origin, payload)));
+  // 深度采集 = 普通采集(全部 cookie + 已打开标签页 storage)+ 后台打开应用内全部站点补采 storage。
+  const payload = await buildCookiePayload();
+  payload.deep = true;
+  const urls = await querySiteUrls();
+  const origins = Array.from(new Set(urls.map((url) => {
+    try { return new URL(url).origin; } catch { return null; }
+  }).filter(Boolean)));
+  await Promise.all(origins.map((origin) => collectOneOrigin(origin, payload)));
   return sendPayload(payload);
 }
 
