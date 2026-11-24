@@ -11,6 +11,7 @@ const {
   Tray,
   Menu,
   nativeImage,
+  nativeTheme,
   screen,
   dialog
 } = require('electron');
@@ -207,8 +208,14 @@ function themeBg() {
   return config.theme === 'light' ? '#f2f3f6' : '#17181c';
 }
 
+function applyWebTheme() {
+  const mode = config.webTheme;
+  nativeTheme.themeSource = mode === 'dark' || mode === 'light' ? mode : 'system';
+}
+
 function broadcastTheme() {
   const theme = config.theme || 'dark';
+  applyWebTheme();
   sendToSidebar('theme:update', { theme });
   if (panelView && !panelView.webContents.isDestroyed()) panelView.webContents.send('theme:update', { theme });
   if (titlebarView && !titlebarView.webContents.isDestroyed()) titlebarView.webContents.send('theme:update', { theme });
@@ -918,7 +925,8 @@ function setupIpc() {
     proxyRules: config.proxyRules || '',
     accentColor: config.accentColor,
     homeUrl: config.homeUrl || '',
-    theme: config.theme || 'dark'
+    theme: config.theme || 'dark',
+    webTheme: config.webTheme || 'system'
   }));
   ipcMain.handle('settings:set-titlebar-mode', (_event, mode) => setTitlebarMode(mode));
   ipcMain.handle('settings:set-theme', (_event, theme) => {
@@ -927,6 +935,13 @@ function setupIpc() {
     sync.schedulePush();
     broadcastTheme();
     return { ok: true, theme: config.theme };
+  });
+  ipcMain.handle('settings:set-web-theme', (_event, mode) => {
+    config.webTheme = ['system', 'dark', 'light'].includes(mode) ? mode : 'system';
+    configStore.save(config);
+    sync.schedulePush();
+    applyWebTheme();
+    return { ok: true, webTheme: config.webTheme };
   });
   ipcMain.handle('settings:set-home', (_event, url) => {
     const value = String(url || '').trim();
@@ -997,6 +1012,28 @@ function setupIpc() {
   ipcMain.handle('sync:configure', async (_event, options) => {
     const result = await sync.configure(options || {});
     return { ...result, status: sync.status() };
+  });
+  ipcMain.handle('sync:set-enabled', async (_event, enabled) => {
+    const result = await sync.setEnabled(enabled);
+    return { ...result, status: sync.status() };
+  });
+  ipcMain.handle('sync:set-auto', async (_event, autoSync) => {
+    const result = await sync.setAutoSync(autoSync);
+    return { ...result, status: sync.status() };
+  });
+  ipcMain.handle('dialog:confirm-danger', async (_event, options) => {
+    const parent = panelWindow && !panelWindow.isDestroyed() ? panelWindow : mainWindow;
+    const result = await dialog.showMessageBox(parent, {
+      type: 'warning',
+      title: String((options && options.title) || '确认操作'),
+      message: String((options && options.message) || ''),
+      detail: String((options && options.detail) || ''),
+      buttons: [String((options && options.confirmLabel) || '确定'), '取消'],
+      defaultId: 1,
+      cancelId: 1,
+      noLink: true
+    });
+    return { ok: result.response === 0 };
   });
   ipcMain.handle('sync:upload', async () => {
     const result = await sync.push();
@@ -1281,6 +1318,7 @@ if (!gotLock) {
   app.whenReady().then(() => {
     config = configStore.load();
     sites = sitesStore.load();
+    applyWebTheme();
     applyProxy().catch(() => {});
     try {
       nativeHost.register();
@@ -1318,6 +1356,7 @@ if (!gotLock) {
         registerShortcuts();
         layoutViews();
         broadcastSites();
+        broadcastTheme();
         sendToSidebar('accent:update', { accentColor: config.accentColor });
       },
       onRemoteSites: (remoteSites) => {

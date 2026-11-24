@@ -21,7 +21,14 @@ function init({ getState, persist, onRemoteProfile, onRemoteSites, status }) {
     if (sites && onRemoteSites) onRemoteSites(sites);
   };
   state = getLocalConfig().sync;
-  if (state.enabled) {
+  startPolling();
+}
+
+function startPolling() {
+  clearInterval(pollTimer);
+  pollTimer = null;
+  const cfg = getLocalConfig().sync;
+  if (cfg.enabled && cfg.autoSync && cfg.serverUrl) {
     setTimeout(() => pull().catch(() => {}), 3000);
     pollTimer = setInterval(() => pull().catch(() => {}), 30 * 60 * 1000);
   }
@@ -57,6 +64,7 @@ async function request(method, url, body) {
     method,
     headers: {
       Authorization: authHeader(),
+      ...(method === 'PROPFIND' ? { Depth: '0' } : {}),
       ...(body ? { 'Content-Type': 'application/json' } : {})
     },
     body: body ? JSON.stringify(body) : undefined
@@ -136,15 +144,14 @@ async function push() {
 
 function schedulePush() {
   const cfg = getLocalConfig().sync;
-  if (!cfg.enabled) return;
+  if (!cfg.enabled || !cfg.autoSync) return;
   clearTimeout(pushTimer);
   pushTimer = setTimeout(() => push().catch(() => {}), 30 * 1000);
 }
 
-async function configure({ enabled, serverUrl, username, password, remoteDir }) {
+async function configure({ serverUrl, username, password, remoteDir }) {
   const cfg = getLocalConfig();
   const sync = { ...cfg.sync };
-  if (enabled !== undefined) sync.enabled = Boolean(enabled);
   if (serverUrl !== undefined) sync.serverUrl = String(serverUrl).trim();
   if (username !== undefined) sync.username = String(username).trim();
   if (remoteDir !== undefined) sync.remoteDir = String(remoteDir).trim() || '/ChatBox/';
@@ -155,13 +162,44 @@ async function configure({ enabled, serverUrl, username, password, remoteDir }) 
   }
   cfg.sync = sync;
   saveLocalConfig(cfg);
-  clearInterval(pollTimer);
-  if (sync.enabled && sync.serverUrl) {
-    pollTimer = setInterval(() => pull().catch(() => {}), 30 * 60 * 1000);
-    const result = await push();
-    if (result.ok) await pull();
-    return result;
+  onStatus(cfg.sync);
+  if (!sync.serverUrl || !sync.username || !sync.passwordEnc) {
+    return { ok: false, error: '服务器、账号与应用密码需填写完整' };
   }
+  const probe = await request('PROPFIND', baseUrl().replace(/\/$/, ''));
+  if (probe.status === 401 || probe.status === 403) {
+    return { ok: false, error: `认证失败 (HTTP ${probe.status})` };
+  }
+  if (!probe.ok && probe.status !== 404 && probe.status !== 405) {
+    return { ok: false, error: `HTTP ${probe.status}` };
+  }
+  return { ok: true };
+}
+
+async function setEnabled(enabled) {
+  const cfg = getLocalConfig();
+  if (enabled && (!cfg.sync.serverUrl || !cfg.sync.username || !cfg.sync.passwordEnc)) {
+    return { ok: false, error: '请先填写服务器、账号与应用密码并保存' };
+  }
+  cfg.sync.enabled = Boolean(enabled);
+  if (!enabled) cfg.sync.autoSync = false;
+  saveLocalConfig(cfg);
+  clearTimeout(pushTimer);
+  startPolling();
+  onStatus(cfg.sync);
+  return { ok: true };
+}
+
+async function setAutoSync(autoSync) {
+  const cfg = getLocalConfig();
+  if (autoSync && !cfg.sync.enabled) {
+    return { ok: false, error: '请先启用同步' };
+  }
+  cfg.sync.autoSync = Boolean(autoSync);
+  saveLocalConfig(cfg);
+  clearTimeout(pushTimer);
+  startPolling();
+  onStatus(cfg.sync);
   return { ok: true };
 }
 
@@ -169,6 +207,7 @@ function status() {
   const cfg = getLocalConfig().sync;
   return {
     enabled: cfg.enabled,
+    autoSync: cfg.autoSync,
     serverUrl: cfg.serverUrl,
     username: cfg.username,
     remoteDir: cfg.remoteDir,
@@ -178,4 +217,4 @@ function status() {
   };
 }
 
-module.exports = { init, pull, push, schedulePush, configure, status };
+module.exports = { init, pull, push, schedulePush, configure, setEnabled, setAutoSync, status };

@@ -175,6 +175,13 @@ html, body {
 
 .btn:hover { filter: brightness(1.12); }
 
+.btn:disabled, .check-row input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.check-row:has(input:disabled) { color: var(--text-faint); }
+
 .btn.primary {
   background: #4d6bfe;
   border-color: #4d6bfe;

@@ -32,9 +32,13 @@ contextBridge.exposeInMainWorld('chatbox', {
   onUpdateProgress: (callback) => ipcRenderer.on('update:progress', (_event, data) => callback(data)),
   syncStatus: () => ipcRenderer.invoke('sync:status'),
   syncConfigure: (options) => ipcRenderer.invoke('sync:configure', options),
+  syncSetEnabled: (enabled) => ipcRenderer.invoke('sync:set-enabled', enabled),
+  syncSetAuto: (autoSync) => ipcRenderer.invoke('sync:set-auto', autoSync),
   syncUpload: () => ipcRenderer.invoke('sync:upload'),
   syncPull: () => ipcRenderer.invoke('sync:pull'),
   onSyncStatus: (callback) => ipcRenderer.on('sync:status', (_event, data) => callback(data)),
   setTheme: (theme) => ipcRenderer.invoke('settings:set-theme', theme),
+  setWebTheme: (mode) => ipcRenderer.invoke('settings:set-web-theme', mode),
+  confirmDanger: (options) => ipcRenderer.invoke('dialog:confirm-danger', options),
   onThemeUpdate: (callback) => ipcRenderer.on('theme:update', (_event, data) => callback(data))
 });

@@ -31,6 +31,15 @@
           </div>
         </div>
         <div class="setting-row">
+          <span class="hotkey-label">网页主题</span>
+          <div class="seg">
+            <button id="web-theme-system" class="seg-btn">跟随系统</button>
+            <button id="web-theme-dark" class="seg-btn">深色</button>
+            <button id="web-theme-light" class="seg-btn">浅色</button>
+          </div>
+        </div>
+        <p class="note">「主题」控制软件界面;「网页主题」控制站点网页本身的深浅色,立即生效。</p>
+        <div class="setting-row">
           <span class="hotkey-label">标题栏样式</span>
           <div class="seg">
             <button id="mode-floating" class="seg-btn">悬浮</button>
@@ -87,11 +96,8 @@
       </div>
 
       <div class="tab-pane" data-pane="sync">
-        <p class="note">基于标准 WebDAV(坚果云 / NAS 等)。快捷键与站点名册跟随网盘漫游;登录态与本机凭据永不上传。</p>
-        <div class="setting-row">
-          <span class="hotkey-label">启用同步</span>
-          <label class="check-row"><input id="sync-enabled" type="checkbox" /> 开启自动同步</label>
-        </div>
+        <p class="note">基于标准 WebDAV(坚果云 / NAS 等)。仅同步快捷键与站点名册;登录态与本机凭据永不上传。</p>
+        <div class="section-divider">连接配置</div>
         <div class="form-row">
           <label class="form-label">服务器</label>
           <input id="sync-server" class="form-input" placeholder="https://dav.jianguoyun.com/dav/" spellcheck="false" />
@@ -107,8 +113,18 @@
         <div class="form-row">
           <label class="form-label">远端目录</label>
           <input id="sync-dir" class="form-input" placeholder="/ChatBox/" spellcheck="false" />
-          <button id="sync-save" class="btn">保存</button>
+          <button id="sync-save" class="btn">保存并测试连接</button>
         </div>
+        <div class="section-divider">同步开关</div>
+        <div class="setting-row">
+          <span class="hotkey-label">启用同步</span>
+          <label class="check-row"><input id="sync-enabled" type="checkbox" /> 允许手动上传 / 拉取</label>
+        </div>
+        <div class="setting-row">
+          <span class="hotkey-label">自动同步</span>
+          <label class="check-row"><input id="sync-auto" type="checkbox" /> 后台自动上传与拉取</label>
+        </div>
+        <p class="note">自动同步会在后台上传本机配置并拉取远端更新,可能覆盖云端或本机配置。建议先手动「上传到云端」或「从云端拉取」确认内容后再开启。</p>
         <div class="actions">
           <button id="sync-upload" class="btn">上传到云端</button>
           <button id="sync-pull" class="btn ghost">从云端拉取</button>

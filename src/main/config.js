@@ -6,6 +6,7 @@ const { SITES } = require('../shared/sites');
 const PROFILE_DEFAULTS = {
   titlebarMode: 'floating',
   theme: 'dark',
+  webTheme: 'system',
   accentColor: '#ff5fa2',
   homeUrl: '',
   proxyMode: 'system',
@@ -27,6 +28,7 @@ const LOCAL_DEFAULTS = {
   windowBounds: null,
   sync: {
     enabled: false,
+    autoSync: false,
     serverUrl: '',
     username: '',
     passwordEnc: '',

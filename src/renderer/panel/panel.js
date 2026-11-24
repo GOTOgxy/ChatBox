@@ -207,6 +207,7 @@ window.chatbox.onPanelShow(async (data) => {
     setAccentUi(settings.accentColor || '#ff5fa2');
     setThemeUi(settings.theme || 'dark');
     applyTheme(settings.theme);
+    setWebThemeUi(settings.webTheme || 'system');
     document.getElementById('home-url').value = settings.homeUrl || '';
     document.getElementById('version-text').textContent = `v${settings.version}`;
   });
@@ -238,6 +239,19 @@ window.chatbox.onThemeUpdate(({ theme }) => {
   setThemeUi(theme);
   applyTheme(theme);
 });
+
+function setWebThemeUi(mode) {
+  for (const value of ['system', 'dark', 'light']) {
+    document.getElementById(`web-theme-${value}`).classList.toggle('active', (mode || 'system') === value);
+  }
+}
+
+for (const mode of ['system', 'dark', 'light']) {
+  document.getElementById(`web-theme-${mode}`).addEventListener('click', async () => {
+    const result = await window.chatbox.setWebTheme(mode);
+    setWebThemeUi(result.webTheme);
+  });
+}
 
 function selectSettingsTab(name) {
   document.querySelectorAll('#settings-tabs .tab-btn').forEach((button) => {
@@ -524,9 +538,14 @@ document.getElementById('open-user-data').addEventListener('click', () => window
 
 function renderSyncStatus(status) {
   document.getElementById('sync-enabled').checked = Boolean(status.enabled);
+  const autoCheckbox = document.getElementById('sync-auto');
+  autoCheckbox.checked = Boolean(status.autoSync);
+  autoCheckbox.disabled = !status.enabled;
   document.getElementById('sync-server').value = status.serverUrl || '';
   document.getElementById('sync-user').value = status.username || '';
   document.getElementById('sync-dir').value = status.remoteDir || '/ChatBox/';
+  document.getElementById('sync-upload').disabled = !status.enabled;
+  document.getElementById('sync-pull').disabled = !status.enabled;
   const statusEl = document.getElementById('sync-status');
   if (status.lastError) {
     statusEl.className = 'status error';
@@ -536,16 +555,15 @@ function renderSyncStatus(status) {
     statusEl.textContent = `上次同步: ${new Date(status.lastSyncAt).toLocaleString()}`;
   } else {
     statusEl.className = 'status';
-    statusEl.textContent = status.enabled ? '已启用,尚未同步。' : '未启用。凭据仅存本机,登录态永不上传。';
+    statusEl.textContent = status.enabled ? '已启用,尚未同步。' : '未启用。填写连接配置并保存后,再打开「启用同步」。';
   }
 }
 
 document.getElementById('sync-save').addEventListener('click', async () => {
   const statusEl = document.getElementById('sync-status');
   statusEl.className = 'status';
-  statusEl.textContent = '保存并连接中…';
+  statusEl.textContent = '保存并测试连接中…';
   const result = await window.chatbox.syncConfigure({
-    enabled: document.getElementById('sync-enabled').checked,
     serverUrl: document.getElementById('sync-server').value,
     username: document.getElementById('sync-user').value,
     password: document.getElementById('sync-pass').value,
@@ -555,7 +573,44 @@ document.getElementById('sync-save').addEventListener('click', async () => {
   renderSyncStatus(result.status);
   if (!result.ok) {
     statusEl.className = 'status error';
-    statusEl.textContent = `连接失败: ${result.error}(配置已保存,可稍后重试)`;
+    statusEl.textContent = `连接失败: ${result.error}(配置已保存,可修改后重试)`;
+  } else {
+    statusEl.className = 'status';
+    statusEl.textContent = '连接成功。可手动上传 / 拉取,或按需开启自动同步。';
+  }
+});
+
+document.getElementById('sync-enabled').addEventListener('change', async (event) => {
+  const wanted = event.target.checked;
+  const result = await window.chatbox.syncSetEnabled(wanted);
+  renderSyncStatus(result.status);
+  if (!result.ok) {
+    const statusEl = document.getElementById('sync-status');
+    statusEl.className = 'status error';
+    statusEl.textContent = result.error;
+  }
+});
+
+document.getElementById('sync-auto').addEventListener('change', async (event) => {
+  const wanted = event.target.checked;
+  if (wanted) {
+    const confirmResult = await window.chatbox.confirmDanger({
+      title: '开启自动同步',
+      message: '确定开启自动同步吗?',
+      detail: '开启后,本机配置变更会在后台自动上传到云端(覆盖云端旧配置),并定期拉取远端更新覆盖本机。若本机是全新空配置,可能覆盖云端已有配置。建议先手动上传 / 拉取确认内容。',
+      confirmLabel: '开启自动同步'
+    });
+    if (!confirmResult.ok) {
+      event.target.checked = false;
+      return;
+    }
+  }
+  const result = await window.chatbox.syncSetAuto(wanted);
+  renderSyncStatus(result.status);
+  if (!result.ok) {
+    const statusEl = document.getElementById('sync-status');
+    statusEl.className = 'status error';
+    statusEl.textContent = result.error;
   }
 });
 
