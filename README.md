@@ -20,6 +20,7 @@
 |---|---|---|
 | Windows | `ChatBox-Setup-x.y.z.exe` | 双击安装,用户级安装,可选安装目录 |
 | macOS | `ChatBox-x.y.z-arm64.dmg` | 仅支持 Apple Silicon(M 系列),拖入 Applications |
+| Linux | 无(源码运行) | `npm install && npm start`,**未经验证**,暂不提供安装包,见[开发者指南](docs/development.md) |
 
 > ⚠️ **Mac 用户安装后需要多做一步操作**,否则首次打开会提示「已损坏」。详见 [Mac 安装指南](docs/mac-setup.md)。
 
@@ -57,7 +58,7 @@
 | 快捷键注册失败 | 组合键被系统或其他软件占用,换一个;输入框会自动还原 |
 | Google 登录拦截内嵌浏览器 | 用登录态导入绕过,或改 UA 后重试 |
 | 站点无未读角标 | 该站点不往标题写 `(n)` 前缀,属已知边界 |
-| Linux Wayland 全局快捷键失效 | 依赖桌面环境支持,X11 正常 |
+| Linux(源码运行)Wayland 全局快捷键失效 | 依赖桌面环境支持,X11 正常;Linux 整体未经验证 |
 
 ## 文档
 

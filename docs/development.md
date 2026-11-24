@@ -9,6 +9,8 @@ npm install
 npm start
 ```
 
+**平台支持现状**:Windows / macOS 有正式安装包与发布流程;Linux 只能源码运行(`npm install && npm start`),没有构建目标与安装包,也未经实际测试——代码里有 Linux 分支(native host 注册、配置目录、更新回退),但欢迎在 Linux 上验证并反馈。
+
 国内网络下载 Electron 二进制失败时设镜像:
 
 ```bash
