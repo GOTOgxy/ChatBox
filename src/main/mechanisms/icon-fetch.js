@@ -1,5 +1,17 @@
 const registry = require('./index');
 
+function lockSvgLight(dataUrl) {
+  if (!dataUrl.startsWith('data:image/svg+xml')) return dataUrl;
+  try {
+    const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+    let svg = Buffer.from(base64, 'base64').toString('utf8');
+    svg = svg.replace(/@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/gi, '');
+    return 'data:image/svg+xml;base64,' + Buffer.from(svg, 'utf8').toString('base64');
+  } catch {
+    return dataUrl;
+  }
+}
+
 async function fetchIconInPage(view, iconUrl) {
   return view.webContents.executeJavaScript(`(async () => {
     try {
@@ -58,7 +70,7 @@ async function run({ site, getView }) {
   for (const iconUrl of candidates) {
     try {
       const result = await fetchIconInPage(view, iconUrl);
-      if (result && result.data) return { ok: true, icon: result.data };
+      if (result && result.data) return { ok: true, icon: lockSvgLight(result.data) };
     } catch {
     }
   }
@@ -72,4 +84,4 @@ registry.register({
   run
 });
 
-module.exports = { run };
+module.exports = { run, lockSvgLight };

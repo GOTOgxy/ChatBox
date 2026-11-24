@@ -2,6 +2,13 @@ const bar = document.getElementById('bar');
 let sites = [];
 let selected = 0;
 
+function nearWhite(color) {
+  const match = /^#([0-9a-f]{6})$/i.exec(color || '');
+  if (!match) return false;
+  const value = parseInt(match[1], 16);
+  return ((value >> 16) & 255) > 235 && ((value >> 8) & 255) > 235 && (value & 255) > 235;
+}
+
 function render() {
   bar.innerHTML = '';
   sites.forEach((site, index) => {
@@ -9,7 +16,7 @@ function render() {
     card.className = 'card' + (index === selected ? ' selected' : '');
     card.innerHTML = `
       <span class="num">${index + 1}</span>
-      <div class="icon" style="background:${site.color}">${site.icon ? `<img src="${site.icon}" alt="" style="width:26px;height:26px;object-fit:contain" />` : site.letter}</div>
+      <div class="icon" style="background:${site.color};${nearWhite(site.color) ? 'border:1px solid var(--border-input);' : ''}">${site.icon ? `<img src="${site.icon}" alt="" style="width:26px;height:26px;object-fit:contain" />` : site.letter}</div>
       <span class="name">${site.name}</span>`;
     card.addEventListener('click', () => window.chatbox.pick(site.id));
     card.addEventListener('mousemove', () => {

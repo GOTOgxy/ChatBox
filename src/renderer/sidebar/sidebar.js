@@ -4,6 +4,13 @@ let sites = [];
 let hotkeys = { switcher: '', showApp: '', sites: {} };
 let openedIds = new Set();
 
+function nearWhite(color) {
+  const match = /^#([0-9a-f]{6})$/i.exec(color || '');
+  if (!match) return false;
+  const value = parseInt(match[1], 16);
+  return ((value >> 16) & 255) > 235 && ((value >> 8) & 255) > 235 && (value & 255) > 235;
+}
+
 function displayAccel(accelerator) {
   return (accelerator || '未设置').replace(/CommandOrControl/g, 'Ctrl');
 }
@@ -20,6 +27,7 @@ function render(list, activeId) {
     if (site.icon) {
       button.classList.add('has-icon');
       button.style.background = site.color;
+      if (nearWhite(site.color)) button.classList.add('light-tile');
       button.innerHTML = `<img src="${site.icon}" alt="" /><span class="badge"></span>`;
     } else {
       button.style.background = site.color;
@@ -83,6 +91,7 @@ function renderHiddenList() {
     if (site.icon) {
       button.classList.add('has-icon');
       button.style.background = site.color;
+      if (nearWhite(site.color)) button.classList.add('light-tile');
       button.innerHTML = `<img src="${site.icon}" alt="" />`;
     } else {
       button.innerHTML = `<span>${site.letter}</span>`;

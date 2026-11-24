@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
 const { SITES: DEFAULT_SITES } = require('../shared/sites');
+const { lockSvgLight } = require('./mechanisms/icon-fetch');
 
 function sitesPath() {
   return path.join(app.getPath('userData'), 'sites.json');
@@ -58,7 +59,12 @@ function load() {
     const stored = JSON.parse(fs.readFileSync(sitesPath(), 'utf8'));
     if (Array.isArray(stored) && stored.length > 0) {
       const normalized = stored.map((site) => ensureRootDomain(normalizeSite(site)));
-      if (JSON.stringify(normalized.map((site) => site.domains)) !== JSON.stringify(stored.map((site) => site.domains))) {
+      for (const site of normalized) {
+        if (site.icon) site.icon = lockSvgLight(site.icon);
+      }
+      const domainsChanged = JSON.stringify(normalized.map((site) => site.domains)) !== JSON.stringify(stored.map((site) => site.domains));
+      const iconsChanged = normalized.some((site, index) => site.icon !== stored[index].icon);
+      if (domainsChanged || iconsChanged) {
         save(normalized);
       }
       return normalized;

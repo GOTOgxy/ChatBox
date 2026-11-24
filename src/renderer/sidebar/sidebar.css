@@ -148,6 +148,8 @@ body::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 2px; }
   border: 1px solid var(--card-border);
 }
 
+.site-btn.light-tile { border-color: var(--border-input); }
+
 .site-btn.dragging { opacity: 0.3; }
 
 .site-btn.drop-target { outline: 2px solid var(--accent); outline-offset: 1px; }
