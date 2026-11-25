@@ -913,13 +913,35 @@ document.getElementById('do-import').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('clear-all-login').addEventListener('click', async () => {
+const clearAllBtn = document.getElementById('clear-all-login');
+let clearArmTimer = null;
+function disarmClearAll() {
+  if (clearArmTimer) { clearTimeout(clearArmTimer); clearArmTimer = null; }
+  clearAllBtn.dataset.armed = '';
+  clearAllBtn.classList.remove('danger');
+  clearAllBtn.classList.add('ghost');
+  clearAllBtn.textContent = '清除全部登录态…';
+}
+clearAllBtn.addEventListener('click', async () => {
   const statusEl = document.getElementById('clear-login-status');
+  if (clearAllBtn.dataset.armed !== '1') {
+    clearAllBtn.dataset.armed = '1';
+    clearAllBtn.classList.remove('ghost');
+    clearAllBtn.classList.add('danger');
+    clearAllBtn.textContent = '再次点击确认清除全部登录态';
+    statusEl.className = 'status';
+    statusEl.textContent = '将清除所有站点的登录态,再次点击按钮确认。';
+    clearArmTimer = setTimeout(disarmClearAll, 4000);
+    return;
+  }
+  disarmClearAll();
+  clearAllBtn.disabled = true;
   const result = await window.chatbox.clearAllLogin();
+  clearAllBtn.disabled = false;
   if (result.ok) {
     statusEl.className = 'status';
     statusEl.textContent = `已清除 ${result.cleared} 个站点的登录态。`;
-  } else if (!result.canceled) {
+  } else {
     statusEl.className = 'status error';
     statusEl.textContent = '清除失败。';
   }

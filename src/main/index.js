@@ -385,6 +385,23 @@ function createSiteView(site) {
       }, 1000);
     }
   });
+  view.webContents.on('context-menu', (_event, params) => {
+    const stripHeight = Math.max(4, Math.min(60, Number(config.webDragStripHeight) || 16));
+    if (config.webDragStrip && params.y < stripHeight) return; // 拖动条区域不弹菜单
+    const wc = view.webContents;
+    if (wc.isDestroyed()) return;
+    const menu = Menu.buildFromTemplate([
+      { label: '复制', enabled: Boolean(params.selectionText), click: () => { if (!wc.isDestroyed()) wc.copy(); } },
+      { label: '粘贴', enabled: Boolean(params.isEditable), click: () => { if (!wc.isDestroyed()) wc.paste(); } },
+      { type: 'separator' },
+      { label: '刷新', click: () => { if (!wc.isDestroyed()) wc.reload(); } },
+      { label: '上一页', enabled: wc.navigationHistory.canGoBack(), click: () => { if (!wc.isDestroyed()) wc.navigationHistory.goBack(); } },
+      { label: '下一页', enabled: wc.navigationHistory.canGoForward(), click: () => { if (!wc.isDestroyed()) wc.navigationHistory.goForward(); } },
+      { type: 'separator' },
+      { label: 'app首页', click: () => resetSiteHome(site.id) }
+    ]);
+    menu.popup({ window: mainWindow });
+  });
   view.webContents.loadURL(site.url);
   siteViews.set(site.id, view);
   return view;
@@ -1434,12 +1451,8 @@ function setupIpc() {
         }
       },
       {
-        label: '刷新回到首页',
-        click: () => {
-          const wasActive = activeSiteId === id;
-          closeSiteView(id);
-          if (wasActive) activateSite(id);
-        }
+        label: 'app首页',
+        click: () => resetSiteHome(id)
       },
       {
         label: '关闭',
@@ -1641,6 +1654,12 @@ function setupIpc() {
   ipcMain.handle('sites:delete', (_event, id) => confirmDeleteSite(id));
 }
 
+function resetSiteHome(id) {
+  const wasActive = activeSiteId === id;
+  closeSiteView(id);
+  if (wasActive) activateSite(id);
+}
+
 async function confirmClearSiteData(id) {
   const site = siteById(id);
   if (!site) return;
@@ -1664,18 +1683,8 @@ async function confirmClearSiteData(id) {
 }
 
 async function clearAllLogin() {
+  // 二次确认已在面板内完成(按钮二次点击),此处直接清除。
   const targets = sites;
-  const result = await dialog.showMessageBox(mainWindow, {
-    type: 'warning',
-    title: '清除全部登录态',
-    message: `确定清除全部 ${targets.length} 个站点的本地登录态吗?`,
-    detail: '将清除所有站点在本应用内的 Cookie 与 localStorage(含导入的登录态),需重新登录或重新导入。快捷键、图标、站点配置与软件设置不受影响。',
-    buttons: ['清除', '取消'],
-    defaultId: 1,
-    cancelId: 1,
-    noLink: true
-  });
-  if (result.response !== 0) return { ok: false, canceled: true };
   let cleared = 0;
   for (const site of targets) {
     try {
